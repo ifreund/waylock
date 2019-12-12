@@ -13,12 +13,12 @@ use wayland_protocols::wlr::unstable::input_inhibitor::v1::client::{
 use wayland_protocols::wlr::unstable::layer_shell::v1::client::{
     zwlr_layer_shell_v1, zwlr_layer_surface_v1,
 };
-
 use xkbcommon::xkb;
 //use wayland_protocols::unstable::xdg_output::v1::client::zxdg_output_manager_v1;
 
 use byteorder::{NativeEndian, WriteBytesExt};
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::rc::Rc;
@@ -37,14 +37,21 @@ const STRIDE: i32 = WIDTH * 4;
 struct State {
     display: Display,
     event_queue: EventQueue,
-    // inhibitor: Main<zwlr_input_inhibitor_v1::ZwlrInputInhibitorV1>,
+    inhibitor: Main<zwlr_input_inhibitor_v1::ZwlrInputInhibitorV1>,
     compositor: Main<wl_compositor::WlCompositor>,
     shm: Main<wl_shm::WlShm>,
     surface: Main<wl_surface::WlSurface>,
     layer_surface: Main<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
+    input: Rc<RefCell<Input>>,
+    locked: Rc<Cell<bool>>,
+}
+
+struct Input {
     seat: Main<wl_seat::WlSeat>,
     xkb_context: xkb::Context,
-    locked: Rc<Cell<bool>>,
+    xkb_keymap: Option<xkb::Keymap>,
+    xkb_state: Option<xkb::State>,
+    password: String,
 }
 
 impl State {
@@ -59,11 +66,23 @@ impl State {
         event_queue.sync_roundtrip(|_, _| unreachable!()).unwrap();
 
         // Get an instance of the InputInhibitorManager global with version 1
-        //let inhibitor_manager = globals
-        //    .instantiate_exact::<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>(1)
-        //    .unwrap();
+        let inhibitor_manager = globals
+            .instantiate_exact::<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>(1)
+            .unwrap();
         // As long as the inhibitor has not been destroyed other clients recieve no input
-        // let inhibitor = inhibitor_manager.get_inhibitor();
+        let inhibitor = inhibitor_manager.get_inhibitor();
+
+        // Must instantiate the seat before the set_keyboard_interactivity request for gaining
+        // focus to work
+        let seat = globals.instantiate_exact::<wl_seat::WlSeat>(7).unwrap();
+        let xkb_context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let input = Input {
+            seat,
+            xkb_context,
+            xkb_keymap: None,
+            xkb_state: None,
+            password: String::new(),
+        };
 
         // Get an instance of the WlShm global with version 1
         let shm = globals.instantiate_exact::<wl_shm::WlShm>(1).unwrap();
@@ -98,27 +117,21 @@ impl State {
         // drawing
         surface.commit();
 
-        let seat = globals.instantiate_exact::<wl_seat::WlSeat>(7).unwrap();
-
-        let xkb_context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-
         Self {
             display,
             event_queue,
-            // inhibitor,
+            inhibitor,
             compositor,
             shm,
             surface,
             layer_surface,
-            seat,
-            xkb_context,
+            input: Rc::new(RefCell::new(input)),
             locked: Rc::new(Cell::new(true)),
         }
     }
 }
 
 fn main() {
-    // let inhibitor = ZwlrInputInhibitManagerV1::get_inhibitor();
     let mut state = State::new();
 
     // Create a file to use as shared memory
@@ -138,6 +151,7 @@ fn main() {
 
     let surface = state.surface.clone();
     let locked = state.locked.clone();
+    let input_clone = state.input.clone();
     let common_filter = Filter::new(move |event, _| match event {
         Events::LayerSurface {
             event,
@@ -167,9 +181,55 @@ fn main() {
             wl_keyboard::Event::Leave { .. } => {
                 println!("Lost keyboard focus.");
             }
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                if format != wl_keyboard::KeymapFormat::XkbV1 {
+                    panic!("Unsupported keymap format, aborting");
+                }
+                let mut input = input_clone.borrow_mut();
+                input.xkb_keymap = Some(
+                    xkb::Keymap::new_from_fd(
+                        &input.xkb_context,
+                        fd,
+                        size as usize,
+                        xkb::KEYMAP_FORMAT_TEXT_V1,
+                        xkb::KEYMAP_COMPILE_NO_FLAGS,
+                    )
+                    .expect("Unable to create keymap"),
+                );
+                input.xkb_state = Some(xkb::State::new(input.xkb_keymap.as_ref().unwrap()));
+            }
             wl_keyboard::Event::Key { key, state, .. } => {
-                println!("Key with id {} was {:?}.", key, state);
-                locked.set(false);
+                //println!("Key with id {} was {:?}.", key, state);
+                let mut input = input_clone.borrow_mut();
+                let keycode = if state == wl_keyboard::KeyState::Pressed {
+                    key + 8
+                } else {
+                    0
+                };
+                let codepoint = input.xkb_state.as_ref().unwrap().key_get_utf32(keycode);
+                if state == wl_keyboard::KeyState::Pressed {
+                    println!("Key {} pressed", std::char::from_u32(codepoint).unwrap());
+                    input
+                        .password
+                        .push(std::char::from_u32(codepoint).expect("Invalid character codepoint"));
+                    if input.password == "qwerty123".to_owned() {
+                        locked.set(false);
+                    };
+                }
+            }
+            wl_keyboard::Event::Modifiers {
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                group,
+                ..
+            } => {
+                input_clone
+                    .borrow_mut()
+                    .xkb_state
+                    .as_mut()
+                    .unwrap()
+                    .update_mask(mods_depressed, mods_latched, mods_locked, 0, 0, group);
             }
             _ => {}
         },
@@ -177,15 +237,19 @@ fn main() {
     state.layer_surface.assign(common_filter.clone());
 
     let mut keyboard_created = false;
-    state.seat.assign_mono(move |seat, event| {
-        if let wl_seat::Event::Capabilities { capabilities } = event {
-            if !keyboard_created && capabilities.contains(wl_seat::Capability::Keyboard) {
-                // create the keyboard only once
-                keyboard_created = true;
-                seat.get_keyboard().assign(common_filter.clone());
+    state
+        .input
+        .borrow_mut()
+        .seat
+        .assign_mono(move |seat, event| {
+            if let wl_seat::Event::Capabilities { capabilities } = event {
+                if !keyboard_created && capabilities.contains(wl_seat::Capability::Keyboard) {
+                    // create the keyboard only once
+                    keyboard_created = true;
+                    seat.get_keyboard().assign(common_filter.clone());
+                }
             }
-        }
-    });
+        });
 
     state
         .event_queue
