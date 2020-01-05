@@ -12,9 +12,11 @@ use byteorder::{NativeEndian, WriteBytesExt};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
+use std::cell::Cell;
+use std::rc::Rc;
 
-pub const WIDTH: i32 = 1920;
-pub const HEIGHT: i32 = 1080;
+const WIDTH: i32 = 1920;
+const HEIGHT: i32 = 1080;
 
 pub struct Output {
     compositor: Main<wl_compositor::WlCompositor>,
@@ -65,6 +67,27 @@ impl Output {
             pool,
             surface,
             layer_surface,
+        }
+    }
+
+    pub fn handle_event(&mut self, event: zwlr_layer_surface_v1::Event, locked: &Rc<Cell<bool>>) {
+        match event {
+            zwlr_layer_surface_v1::Event::Configure { serial, .. } => {
+                // Tell the server we got its suggestions and will take them into account
+                self.layer_surface.ack_configure(serial);
+                self.layer_surface.set_keyboard_interactivity(1);
+                // The coordinates passed are the upper left corner
+                self.surface.attach(Some(&self.pool.base_buffer), 0, 0);
+                // Mark the entire buffer as needing an update
+                self.surface.damage(0, 0, WIDTH, HEIGHT);
+                // Commit the pending buffer
+                self.surface.commit();
+                println!("committed a buffer!");
+            }
+            zwlr_layer_surface_v1::Event::Closed => {
+                locked.set(false);
+            }
+            _ => unreachable!(),
         }
     }
 }

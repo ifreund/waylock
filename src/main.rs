@@ -11,7 +11,6 @@ pub mod output;
 use wayland_client::protocol::{wl_keyboard, wl_seat};
 use wayland_client::{Display, EventQueue, Filter, GlobalManager};
 use wayland_protocols::wlr::unstable::layer_shell::v1::client::zwlr_layer_surface_v1;
-use xkbcommon::xkb;
 
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -48,7 +47,6 @@ impl State {
         // Must instantiate the seat before the set_keyboard_interactivity request on the layer
         // surface for gaining focus to work due to a bug in wlroots
         let input = Input::new(&globals);
-
         let output = Output::new(&globals);
 
         Self {
@@ -68,84 +66,8 @@ fn main() {
     let input_ref = state.input_ref.clone();
     let locked = state.locked.clone();
     let common_filter = Filter::new(move |event, _| match event {
-        Events::LayerSurface { event, .. } => match event {
-            zwlr_layer_surface_v1::Event::Configure { serial, .. } => {
-                let output = output_ref.borrow();
-                // Tell the server we got its suggestions and will take them into account
-                output.layer_surface.ack_configure(serial);
-                output.layer_surface.set_keyboard_interactivity(1);
-                // The coordinates passed are the upper left corner
-                output.surface.attach(Some(&output.pool.base_buffer), 0, 0);
-                // Mark the entire buffer as needing an update
-                output.surface.damage(0, 0, output::WIDTH, output::HEIGHT);
-                // Commit the pending buffer
-                output.surface.commit();
-                println!("committed a buffer!");
-            }
-            zwlr_layer_surface_v1::Event::Closed => {
-                locked.set(false);
-            }
-            _ => unreachable!(),
-        },
-        Events::Keyboard { event, .. } => match event {
-            wl_keyboard::Event::Enter { .. } => {
-                println!("Gained keyboard focus.");
-            }
-            wl_keyboard::Event::Leave { .. } => {
-                println!("Lost keyboard focus.");
-            }
-            wl_keyboard::Event::Keymap { format, fd, size } => {
-                if format != wl_keyboard::KeymapFormat::XkbV1 {
-                    panic!("Unsupported keymap format, aborting");
-                }
-                let mut input = input_ref.borrow_mut();
-                input.xkb_keymap = Some(
-                    xkb::Keymap::new_from_fd(
-                        &input.xkb_context,
-                        fd,
-                        size as usize,
-                        xkb::KEYMAP_FORMAT_TEXT_V1,
-                        xkb::KEYMAP_COMPILE_NO_FLAGS,
-                    )
-                    .expect("Unable to create keymap"),
-                );
-                input.xkb_state = Some(xkb::State::new(input.xkb_keymap.as_ref().unwrap()));
-            }
-            wl_keyboard::Event::Key { key, state, .. } => {
-                //println!("Key with id {} was {:?}.", key, state);
-                let mut input = input_ref.borrow_mut();
-                let keycode = if state == wl_keyboard::KeyState::Pressed {
-                    key + 8
-                } else {
-                    0
-                };
-                let codepoint = input.xkb_state.as_ref().unwrap().key_get_utf32(keycode);
-                if state == wl_keyboard::KeyState::Pressed {
-                    println!("Key {} pressed", std::char::from_u32(codepoint).unwrap());
-                    input
-                        .password
-                        .push(std::char::from_u32(codepoint).expect("Invalid character codepoint"));
-                    if input.password == "qwerty123" {
-                        locked.set(false);
-                    };
-                }
-            }
-            wl_keyboard::Event::Modifiers {
-                mods_depressed,
-                mods_latched,
-                mods_locked,
-                group,
-                ..
-            } => {
-                input_ref
-                    .borrow_mut()
-                    .xkb_state
-                    .as_mut()
-                    .unwrap()
-                    .update_mask(mods_depressed, mods_latched, mods_locked, 0, 0, group);
-            }
-            _ => {}
-        },
+        Events::LayerSurface { event, .. } => output_ref.borrow_mut().handle_event(event, &locked),
+        Events::Keyboard { event, .. } => input_ref.borrow_mut().handle_event(event, &locked),
     });
 
     state
@@ -173,7 +95,9 @@ fn main() {
         state.display.flush().unwrap();
         state
             .event_queue
-            .dispatch(|_, _| { /* ignore unfiltered messages */ })
+            .dispatch(|_, _| { /* ignore unfiltered messages
+                 TODO: error on unfiltered messages */
+            })
             .expect("Error dispatching");
     }
 }
