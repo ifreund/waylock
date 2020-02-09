@@ -10,7 +10,7 @@ use sctk::reexports::protocols::wlr::unstable::{
     input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
 };
-use sctk::seat::{keyboard, SeatData, SeatHandler, SeatHandling, SeatListener};
+use sctk::seat::{keyboard, keyboard::keysyms, SeatData, SeatHandler, SeatHandling, SeatListener};
 use sctk::shm::{MemPool, ShmHandler};
 
 use byteorder::{NativeEndian, WriteBytesExt};
@@ -217,6 +217,7 @@ fn main() {
 
     let mut redraw = false;
     let mut dimensions = (0, 0);
+    let mut current_password = String::new();
     loop {
         match next_render_event.replace(None) {
             Some(RenderEvent::Close) => {
@@ -240,9 +241,34 @@ fn main() {
             }
         }
 
+        while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
+            match keysym {
+                keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
+                    if validate_password(&current_password) {
+                        return;
+                    }
+                }
+                keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
+                    current_password.pop();
+                }
+                keysyms::XKB_KEY_Escape => {
+                    current_password.clear();
+                }
+                _ => {
+                    if let Some(new_input) = utf8 {
+                        current_password.push_str(&new_input);
+                    }
+                }
+            }
+        }
+
         display.flush().unwrap();
         event_loop.dispatch(None, &mut ()).unwrap();
     }
+}
+
+fn validate_password(current_password: &str) -> bool {
+    current_password == "Qwerty123"
 }
 
 // TODO: better error handling, this should return a Result<>
