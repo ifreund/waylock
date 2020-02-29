@@ -1,6 +1,8 @@
 #[macro_use(environment)]
 extern crate smithay_client_toolkit as sctk;
 
+use byteorder::{NativeEndian, WriteBytesExt};
+use pam::Authenticator;
 use sctk::environment::{Environment, SimpleGlobal};
 use sctk::output::OutputHandler;
 use sctk::reexports::calloop;
@@ -12,13 +14,11 @@ use sctk::reexports::protocols::wlr::unstable::{
 };
 use sctk::seat::{keyboard, keyboard::keysyms, SeatData, SeatHandler, SeatHandling, SeatListener};
 use sctk::shm::{MemPool, ShmHandler};
-
-use byteorder::{NativeEndian, WriteBytesExt};
-
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::rc::Rc;
+use users::get_current_username;
 
 struct LockEnv {
     compositor: SimpleGlobal<wl_compositor::WlCompositor>,
@@ -215,6 +215,10 @@ fn main() {
         })
         .unwrap();
 
+    let mut authenticator =
+        Authenticator::with_password("system-auth").expect("Failed to init PAM client!");
+    let current_username = get_current_username().unwrap().into_string().unwrap();
+
     let mut redraw = false;
     let mut dimensions = (0, 0);
     let mut current_password = String::new();
@@ -244,8 +248,12 @@ fn main() {
         while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
-                    if validate_password(&current_password) {
-                        return;
+                    authenticator
+                        .get_handler()
+                        .set_credentials(&current_username, &current_password);
+                    match authenticator.authenticate() {
+                        Ok(()) => return,
+                        Err(error) => eprintln!("Authentication failed: {}", error),
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
@@ -265,10 +273,6 @@ fn main() {
         display.flush().unwrap();
         event_loop.dispatch(None, &mut ()).unwrap();
     }
-}
-
-fn validate_password(current_password: &str) -> bool {
-    current_password == "Qwerty123"
 }
 
 // TODO: better error handling, this should return a Result<>

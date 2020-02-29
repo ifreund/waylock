@@ -5,5 +5,7 @@ authors = ["Isaac Freund <ifreund@ifreund.xyz>"]
 edition = "2018"
 
 [dependencies]
-smithay-client-toolkit = "0.7.0"
 byteorder = "1.3.4"
+pam = "0.7.0"
+smithay-client-toolkit = "0.7.0"
+users = "0.8.1"
