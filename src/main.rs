@@ -222,10 +222,14 @@ fn main() {
     let mut authenticator =
         Authenticator::with_password("system-auth").expect("Failed to init PAM client!");
     let current_username = get_current_username().unwrap().into_string().unwrap();
+    let mut current_password = String::new();
 
     let mut redraw = false;
     let mut dimensions = (0, 0);
-    let mut current_password = String::new();
+
+    // Solarized base03
+    let mut current_color = 0xFF002B36;
+
     loop {
         match next_render_event.replace(None) {
             Some(RenderEvent::Close) => {
@@ -244,8 +248,7 @@ fn main() {
 
         if redraw {
             if let Some(pool) = pools.pool() {
-                // Solarized base03
-                draw(pool, &surface, 0xFF002B36, dimensions);
+                draw(pool, &surface, current_color, dimensions);
             }
         }
 
@@ -257,7 +260,12 @@ fn main() {
                         .set_credentials(&current_username, &current_password);
                     match authenticator.authenticate() {
                         Ok(()) => return,
-                        Err(error) => eprintln!("Authentication failed: {}", error),
+                        Err(error) => {
+                            eprintln!("Authentication failed: {}", error);
+                            // Solarized red
+                            current_color = 0xFFDC322F;
+                            redraw = true;
+                        }
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
