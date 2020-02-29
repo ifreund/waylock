@@ -80,6 +80,10 @@ fn main() {
         (lock_env, display, queue)
     };
 
+    let _inhibitor = lock_env
+        .require_global::<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>()
+        .get_inhibitor();
+
     let next_render_event = Rc::new(Cell::new(None::<RenderEvent>));
 
     let mut pools = lock_env
