@@ -1,7 +1,7 @@
 #[macro_use(environment)]
 extern crate smithay_client_toolkit as sctk;
 
-use byteorder::{NativeEndian, WriteBytesExt};
+use cairo::{Context, ImageSurface};
 use pam::Authenticator;
 use sctk::environment::{Environment, SimpleGlobal};
 use sctk::output::OutputHandler;
@@ -16,7 +16,6 @@ use sctk::seat::{keyboard, keyboard::keysyms, SeatData, SeatHandler, SeatHandlin
 use sctk::shm::{MemPool, ShmHandler};
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
-use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::rc::Rc;
 use users::get_current_username;
 
@@ -57,6 +56,20 @@ enum RenderEvent {
     Frame,
     Close,
 }
+
+// Solarized base03
+const COLOR_NORMAL: (f64, f64, f64) = (
+    0x00 as f64 / 255.0,
+    0x2B as f64 / 255.0,
+    0x36 as f64 / 255.0,
+);
+
+// Solarized red
+const COLOR_INVALID: (f64, f64, f64) = (
+    0xDC as f64 / 255.0,
+    0x32 as f64 / 255.0,
+    0x2F as f64 / 255.0,
+);
 
 fn main() {
     let (lock_env, display, queue) = {
@@ -227,8 +240,7 @@ fn main() {
     let mut redraw = false;
     let mut dimensions = (0, 0);
 
-    // Solarized base03
-    let mut current_color = 0xFF002B36;
+    let mut current_color = COLOR_NORMAL;
 
     loop {
         match next_render_event.replace(None) {
@@ -262,8 +274,7 @@ fn main() {
                         Ok(()) => return,
                         Err(error) => {
                             eprintln!("Authentication failed: {}", error);
-                            // Solarized red
-                            current_color = 0xFFDC322F;
+                            current_color = COLOR_INVALID;
                             redraw = true;
                         }
                     }
@@ -291,35 +302,39 @@ fn main() {
 fn draw(
     pool: &mut MemPool,
     surface: &wl_surface::WlSurface,
-    color: u32,
+    color: (f64, f64, f64),
     (width, height): (u32, u32),
 ) {
+    let stride = 4 * width as i32;
+    let width = width as i32;
+    let height = height as i32;
+
     // First make sure the pool is large enough
-    pool.resize((4 * width * height) as usize)
+    pool.resize((stride * height) as usize)
         .expect("Failure on shm pool resize");
 
-    // Write the color to all bytes of the pool
-    pool.seek(SeekFrom::Start(0)).unwrap();
-    {
-        let mut writer = BufWriter::new(&mut *pool);
-        for _ in 0..(width * height) {
-            writer.write_u32::<NativeEndian>(color).unwrap();
-        }
-        writer.flush().unwrap();
-    }
-
     // Create a new buffer from the pool
-    let buffer = pool.buffer(
-        0,
-        width as i32,
-        height as i32,
-        4 * width as i32,
-        wl_shm::Format::Argb8888,
-    );
+    let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
+
+    // Safety: the created cairo image surface and context go out of scope and are dropped as the
+    // wl_surface is comitted. This means that the pool, which must stay valid untill the server
+    // releases it, will be valid for the entire lifetime of the cairo context.
+    let pool_data: &'static mut [u8] = unsafe {
+        let mmap = pool.mmap();
+        std::slice::from_raw_parts_mut(mmap.as_mut_ptr(), mmap.len())
+    };
+    let image_surface =
+        ImageSurface::create_for_data(pool_data, cairo::Format::ARgb32, width, height, stride)
+            .unwrap();
+    let context = Context::new(&image_surface);
+
+    context.set_operator(cairo::Operator::Source);
+    context.set_source_rgb(color.0, color.1, color.2);
+    context.paint();
 
     // Attach the buffer to the surface and mark the entire surface as damaged
     surface.attach(Some(&buffer), 0, 0);
-    surface.damage_buffer(0, 0, width as i32, height as i32);
+    surface.damage_buffer(0, 0, width, height);
 
     // Finally, commit the surface
     surface.commit();
