@@ -261,6 +261,7 @@ fn main() {
         if redraw {
             if let Some(pool) = pools.pool() {
                 draw(pool, &surface, current_color, dimensions);
+                redraw = false;
             }
         }
 
