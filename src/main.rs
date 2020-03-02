@@ -262,13 +262,6 @@ fn main() -> std::io::Result<()> {
             None => {}
         }
 
-        if redraw {
-            if let Some(pool) = pools.pool() {
-                draw(pool, &surface, current_color, dimensions)?;
-                redraw = false;
-            }
-        }
-
         while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
@@ -295,6 +288,13 @@ fn main() -> std::io::Result<()> {
                         current_password.push_str(&new_input);
                     }
                 }
+            }
+        }
+
+        if redraw {
+            if let Some(pool) = pools.pool() {
+                draw(pool, &surface, current_color, dimensions)?;
+                redraw = false;
             }
         }
 
