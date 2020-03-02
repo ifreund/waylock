@@ -53,7 +53,6 @@ environment!(LockEnv,
 #[derive(PartialEq, Copy, Clone)]
 enum RenderEvent {
     Configure { width: u32, height: u32 },
-    Frame,
     Close,
 }
 
@@ -255,9 +254,6 @@ fn main() -> std::io::Result<()> {
             Some(RenderEvent::Configure { width, height }) => {
                 redraw = true;
                 dimensions = (width, height);
-            }
-            Some(RenderEvent::Frame) => {
-                redraw = true;
             }
             None => {}
         }
