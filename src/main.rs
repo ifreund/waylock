@@ -1,22 +1,30 @@
-#[macro_use(environment)]
-extern crate smithay_client_toolkit as sctk;
-
 use cairo::{Context, ImageSurface};
 use pam::Authenticator;
-use sctk::environment::{Environment, SimpleGlobal};
-use sctk::output::OutputHandler;
-use sctk::reexports::calloop;
-use sctk::reexports::client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm, wl_surface};
-use sctk::reexports::client::{Attached, DispatchData, Display, Proxy};
-use sctk::reexports::protocols::wlr::unstable::{
-    input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
-    layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
+use smithay_client_toolkit::{
+    environment,
+    environment::{Environment, SimpleGlobal},
+    output::OutputHandler,
+    reexports::{
+        calloop,
+        client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm, wl_surface},
+        client::{Attached, DispatchData, Display, Proxy},
+        protocols::wlr::unstable::{
+            input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
+            layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
+        },
+    },
+    seat::{
+        keyboard, keyboard::keysyms, with_seat_data, SeatData, SeatHandler, SeatHandling,
+        SeatListener,
+    },
+    shm::{MemPool, ShmHandler},
+    WaylandSource,
 };
-use sctk::seat::{keyboard, keyboard::keysyms, SeatData, SeatHandler, SeatHandling, SeatListener};
-use sctk::shm::{MemPool, ShmHandler};
-use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, VecDeque};
-use std::rc::Rc;
+use std::{
+    cell::{Cell, RefCell},
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+};
 use users::get_current_username;
 
 struct LockEnv {
@@ -147,7 +155,7 @@ fn main() -> std::io::Result<()> {
 
     // first process already existing seats
     for seat in lock_env.get_all_seats() {
-        if let Some((has_kbd, name)) = sctk::seat::with_seat_data(&seat, |seat_data| {
+        if let Some((has_kbd, name)) = with_seat_data(&seat, |seat_data| {
             (
                 seat_data.has_keyboard && !seat_data.defunct,
                 seat_data.name.clone(),
@@ -226,7 +234,7 @@ fn main() -> std::io::Result<()> {
     let _source_queue =
         event_loop
             .handle()
-            .insert_source(sctk::WaylandSource::new(queue), |ret, _| {
+            .insert_source(WaylandSource::new(queue), |ret, _| {
                 if let Err(e) = ret {
                     panic!("Wayland connection lost: {:?}", e);
                 }
