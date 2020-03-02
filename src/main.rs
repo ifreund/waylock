@@ -240,8 +240,6 @@ fn main() -> std::io::Result<()> {
                 }
             })?;
 
-    let mut authenticator = Authenticator::with_password("system-auth")
-        .expect("ERROR: failed to initialize PAM client!");
     let current_username = get_current_username()
         .expect("ERROR: failed to get current username!")
         .into_string()
@@ -256,8 +254,7 @@ fn main() -> std::io::Result<()> {
     loop {
         match next_render_event.replace(None) {
             Some(RenderEvent::Close) => {
-                // TODO: cleanup needed?
-                break;
+                return Ok(());
             }
             Some(RenderEvent::Configure { width, height }) => {
                 redraw = true;
@@ -269,16 +266,11 @@ fn main() -> std::io::Result<()> {
         while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
-                    authenticator
-                        .get_handler()
-                        .set_credentials(&current_username, &current_password);
-                    match authenticator.authenticate() {
-                        Ok(()) => return Ok(()),
-                        Err(error) => {
-                            eprintln!("WARNING: authentication failure {}", error);
-                            current_color = COLOR_INVALID;
-                            redraw = true;
-                        }
+                    if check_password(&current_username, &current_password) {
+                        return Ok(());
+                    } else {
+                        current_color = COLOR_INVALID;
+                        redraw = true;
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
@@ -305,7 +297,6 @@ fn main() -> std::io::Result<()> {
         display.flush()?;
         event_loop.dispatch(None, &mut ())?;
     }
-    Ok(())
 }
 
 fn draw(
@@ -364,5 +355,18 @@ fn handle_keyboard_event(
             input_queue_handle.borrow_mut().push_back((keysym, utf8));
         }
         _ => {}
+    }
+}
+
+fn check_password(login: &str, password: &str) -> bool {
+    let mut authenticator = Authenticator::with_password("system-auth")
+        .expect("ERROR: failed to initialize PAM client!");
+    authenticator.get_handler().set_credentials(login, password);
+    match authenticator.authenticate() {
+        Ok(()) => true,
+        Err(error) => {
+            eprintln!("WARNING: authentication failure {}", error);
+            false
+        }
     }
 }
