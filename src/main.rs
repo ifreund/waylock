@@ -71,9 +71,10 @@ const COLOR_INVALID: (f64, f64, f64) = (
     0x2F as f64 / 255.0,
 );
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let (lock_env, display, queue) = {
-        let display = Display::connect_to_env().unwrap();
+        let display =
+            Display::connect_to_env().expect("ERROR: failed to connect to a wayland server!");
         let mut queue = display.create_event_queue();
         let lock_env = Environment::init(
             &Proxy::clone(&display).attach(queue.token()),
@@ -86,9 +87,9 @@ fn main() {
                 seats: SeatHandler::new(),
             },
         );
-        let ret = queue.sync_roundtrip(&mut (), |_, _, _| unreachable!());
-        ret.and_then(|_| queue.sync_roundtrip(&mut (), |_, _, _| unreachable!()))
-            .expect("Error during initial setup");
+        // Double roundtrip to ensure globals are bound.
+        queue.sync_roundtrip(&mut (), |_, _, _| unreachable!())?;
+        queue.sync_roundtrip(&mut (), |_, _, _| unreachable!())?;
 
         (lock_env, display, queue)
     };
@@ -99,9 +100,7 @@ fn main() {
 
     let next_render_event = Rc::new(Cell::new(None::<RenderEvent>));
 
-    let mut pools = lock_env
-        .create_double_pool(|_| {})
-        .expect("Failed to create a memory pool !");
+    let mut pools = lock_env.create_double_pool(|_| {})?;
 
     // TODO: support multiple outputs
     // TODO: set opaque region
@@ -145,7 +144,7 @@ fn main() {
 
     let mut seats = HashMap::new();
     let input_queue = Rc::new(RefCell::new(VecDeque::new()));
-    let mut event_loop = calloop::EventLoop::<()>::new().unwrap();
+    let mut event_loop = calloop::EventLoop::<()>::new()?;
 
     // first process already existing seats
     for seat in lock_env.get_all_seats() {
@@ -168,12 +167,14 @@ fn main() {
                         // work
                         let source = event_loop
                             .handle()
-                            .insert_source(repeat_source, |_, _| {})
-                            .unwrap();
+                            .insert_source(repeat_source, |_, _| {})?;
                         seats.insert(name, Some((kbd, source)));
                     }
                     Err(e) => {
-                        eprintln!("Failed to map keyboard on seat {} : {:?}.", name, e);
+                        eprintln!(
+                            "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
+                            name, e
+                        );
                         seats.insert(name, None);
                     }
                 }
@@ -209,7 +210,7 @@ fn main() {
                                 *opt_kbd = Some((kbd, source));
                             }
                             Err(e) => eprintln!(
-                                "Failed to map keyboard on seat {} : {:?}.",
+                                "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
                                 seat_data.name, e
                             ),
                         }
@@ -223,18 +224,21 @@ fn main() {
             .or_insert(None);
     });
 
-    let _source_queue = event_loop
-        .handle()
-        .insert_source(sctk::WaylandSource::new(queue), |ret, _| {
-            if let Err(e) = ret {
-                panic!("Wayland connection lost: {:?}", e);
-            }
-        })
-        .unwrap();
+    let _source_queue =
+        event_loop
+            .handle()
+            .insert_source(sctk::WaylandSource::new(queue), |ret, _| {
+                if let Err(e) = ret {
+                    panic!("Wayland connection lost: {:?}", e);
+                }
+            })?;
 
-    let mut authenticator =
-        Authenticator::with_password("system-auth").expect("Failed to init PAM client!");
-    let current_username = get_current_username().unwrap().into_string().unwrap();
+    let mut authenticator = Authenticator::with_password("system-auth")
+        .expect("ERROR: failed to initialize PAM client!");
+    let current_username = get_current_username()
+        .expect("ERROR: failed to get current username!")
+        .into_string()
+        .expect("ERROR: failed to parse current username!");
     let mut current_password = String::new();
 
     let mut redraw = false;
@@ -260,7 +264,7 @@ fn main() {
 
         if redraw {
             if let Some(pool) = pools.pool() {
-                draw(pool, &surface, current_color, dimensions);
+                draw(pool, &surface, current_color, dimensions)?;
                 redraw = false;
             }
         }
@@ -272,9 +276,9 @@ fn main() {
                         .get_handler()
                         .set_credentials(&current_username, &current_password);
                     match authenticator.authenticate() {
-                        Ok(()) => return,
+                        Ok(()) => return Ok(()),
                         Err(error) => {
-                            eprintln!("Authentication failed: {}", error);
+                            eprintln!("WARNING: authentication failure {}", error);
                             current_color = COLOR_INVALID;
                             redraw = true;
                         }
@@ -294,25 +298,24 @@ fn main() {
             }
         }
 
-        display.flush().unwrap();
-        event_loop.dispatch(None, &mut ()).unwrap();
+        display.flush()?;
+        event_loop.dispatch(None, &mut ())?;
     }
+    Ok(())
 }
 
-// TODO: better error handling, this should return a Result<>
 fn draw(
     pool: &mut MemPool,
     surface: &wl_surface::WlSurface,
     color: (f64, f64, f64),
     (width, height): (u32, u32),
-) {
+) -> std::io::Result<()> {
     let stride = 4 * width as i32;
     let width = width as i32;
     let height = height as i32;
 
     // First make sure the pool is large enough
-    pool.resize((stride * height) as usize)
-        .expect("Failure on shm pool resize");
+    pool.resize((stride * height) as usize)?;
 
     // Create a new buffer from the pool
     let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
@@ -326,7 +329,7 @@ fn draw(
     };
     let image_surface =
         ImageSurface::create_for_data(pool_data, cairo::Format::ARgb32, width, height, stride)
-            .unwrap();
+            .expect("ERROR: failed to create cairo image surface!");
     let context = Context::new(&image_surface);
 
     context.set_operator(cairo::Operator::Source);
@@ -339,6 +342,8 @@ fn draw(
 
     // Finally, commit the surface
     surface.commit();
+
+    Ok(())
 }
 
 fn handle_keyboard_event(
