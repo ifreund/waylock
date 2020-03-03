@@ -1,4 +1,5 @@
-use crate::LockEnv;
+use crate::env::LockEnv;
+
 use cairo::{Context, ImageSurface};
 use smithay_client_toolkit::{
     environment::Environment,
