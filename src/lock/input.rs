@@ -1,4 +1,4 @@
-use crate::env::LockEnv;
+use super::env::LockEnv;
 
 use smithay_client_toolkit::{
     environment::Environment,
