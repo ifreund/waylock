@@ -1,4 +1,7 @@
-use cairo::{Context, ImageSurface};
+mod surface;
+
+use crate::surface::LockSurface;
+
 use pam::Authenticator;
 use smithay_client_toolkit::{
     environment,
@@ -6,28 +9,28 @@ use smithay_client_toolkit::{
     output::OutputHandler,
     reexports::{
         calloop,
-        client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm, wl_surface},
+        client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm},
         client::{Attached, DispatchData, Display, Proxy},
         protocols::wlr::unstable::{
             input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
-            layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
+            layer_shell::v1::client::zwlr_layer_shell_v1,
         },
     },
     seat::{
         keyboard, keyboard::keysyms, with_seat_data, SeatData, SeatHandler, SeatHandling,
         SeatListener,
     },
-    shm::{MemPool, ShmHandler},
+    shm::ShmHandler,
     WaylandSource,
 };
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     collections::{HashMap, VecDeque},
     rc::Rc,
 };
 use users::get_current_username;
 
-struct LockEnv {
+pub struct LockEnv {
     compositor: SimpleGlobal<wl_compositor::WlCompositor>,
     layer_shell: SimpleGlobal<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     inhibitor_manager: SimpleGlobal<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>,
@@ -57,12 +60,6 @@ environment!(LockEnv,
         wl_seat::WlSeat => seats,
     ]
 );
-
-#[derive(PartialEq, Copy, Clone)]
-enum RenderEvent {
-    Configure { width: u32, height: u32 },
-    Close,
-}
 
 // Solarized base03
 const COLOR_NORMAL: (f64, f64, f64) = (
@@ -105,49 +102,12 @@ fn main() -> std::io::Result<()> {
         .require_global::<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>()
         .get_inhibitor();
 
-    let next_render_event = Rc::new(Cell::new(None::<RenderEvent>));
-
-    let mut pools = lock_env.create_double_pool(|_| {})?;
-
-    // TODO: support multiple outputs
-    // TODO: set opaque region
-    let surface = lock_env.create_surface();
-    // This configuration is copied from swaylock
-    let layer_surface = lock_env
-        .require_global::<zwlr_layer_shell_v1::ZwlrLayerShellV1>()
-        .get_layer_surface(
-            &surface,
-            Some(&lock_env.get_all_outputs().first().unwrap()),
-            zwlr_layer_shell_v1::Layer::Overlay,
-            "lockscreen".to_owned(),
-        );
-    layer_surface.set_size(0, 0);
-    layer_surface.set_anchor(zwlr_layer_surface_v1::Anchor::all());
-    layer_surface.set_exclusive_zone(-1);
-    layer_surface.set_keyboard_interactivity(1);
-    // Commit so that the server will send a configure event
-    surface.commit();
-
-    let next_render_event_handle = Rc::clone(&next_render_event);
-    layer_surface.quick_assign(move |layer_surface, event, _| {
-        match (event, next_render_event_handle.get()) {
-            (zwlr_layer_surface_v1::Event::Closed, _) => {
-                next_render_event_handle.set(Some(RenderEvent::Close));
-            }
-            (
-                zwlr_layer_surface_v1::Event::Configure {
-                    serial,
-                    width,
-                    height,
-                },
-                next,
-            ) if next != Some(RenderEvent::Close) => {
-                layer_surface.ack_configure(serial);
-                next_render_event_handle.set(Some(RenderEvent::Configure { width, height }));
-            }
-            (_, _) => {}
-        }
-    });
+    // TODO: Handle output hot plugging
+    let mut lock_surfaces = lock_env
+        .get_all_outputs()
+        .iter()
+        .map(|output| LockSurface::new(&output, &lock_env, COLOR_NORMAL))
+        .collect::<Vec<_>>();
 
     let mut seats = HashMap::new();
     let input_queue = Rc::new(RefCell::new(VecDeque::new()));
@@ -246,31 +206,17 @@ fn main() -> std::io::Result<()> {
         .expect("ERROR: failed to parse current username!");
     let mut current_password = String::new();
 
-    let mut redraw = false;
-    let mut dimensions = (0, 0);
-
-    let mut current_color = COLOR_NORMAL;
-
     loop {
-        match next_render_event.replace(None) {
-            Some(RenderEvent::Close) => {
-                return Ok(());
-            }
-            Some(RenderEvent::Configure { width, height }) => {
-                redraw = true;
-                dimensions = (width, height);
-            }
-            None => {}
-        }
-
+        // Handle all input recieved since last check
         while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
                     if check_password(&current_username, &current_password) {
                         return Ok(());
                     } else {
-                        current_color = COLOR_INVALID;
-                        redraw = true;
+                        for lock_surface in lock_surfaces.iter_mut() {
+                            lock_surface.set_color(COLOR_INVALID);
+                        }
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
@@ -287,58 +233,20 @@ fn main() -> std::io::Result<()> {
             }
         }
 
-        if redraw {
-            if let Some(pool) = pools.pool() {
-                draw(pool, &surface, current_color, dimensions)?;
-                redraw = false;
+        // This is ugly, let's hope that some version of drain_filter() gets stablized soon
+        // https://github.com/rust-lang/rust/issues/43244
+        let mut i = 0;
+        while i != lock_surfaces.len() {
+            if lock_surfaces[i].handle_events() {
+                lock_surfaces.remove(i);
+            } else {
+                i += 1;
             }
         }
 
         display.flush()?;
         event_loop.dispatch(None, &mut ())?;
     }
-}
-
-fn draw(
-    pool: &mut MemPool,
-    surface: &wl_surface::WlSurface,
-    color: (f64, f64, f64),
-    (width, height): (u32, u32),
-) -> std::io::Result<()> {
-    let stride = 4 * width as i32;
-    let width = width as i32;
-    let height = height as i32;
-
-    // First make sure the pool is large enough
-    pool.resize((stride * height) as usize)?;
-
-    // Create a new buffer from the pool
-    let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
-
-    // Safety: the created cairo image surface and context go out of scope and are dropped as the
-    // wl_surface is comitted. This means that the pool, which must stay valid untill the server
-    // releases it, will be valid for the entire lifetime of the cairo context.
-    let pool_data: &'static mut [u8] = unsafe {
-        let mmap = pool.mmap();
-        std::slice::from_raw_parts_mut(mmap.as_mut_ptr(), mmap.len())
-    };
-    let image_surface =
-        ImageSurface::create_for_data(pool_data, cairo::Format::ARgb32, width, height, stride)
-            .expect("ERROR: failed to create cairo image surface!");
-    let context = Context::new(&image_surface);
-
-    context.set_operator(cairo::Operator::Source);
-    context.set_source_rgb(color.0, color.1, color.2);
-    context.paint();
-
-    // Attach the buffer to the surface and mark the entire surface as damaged
-    surface.attach(Some(&buffer), 0, 0);
-    surface.damage_buffer(0, 0, width, height);
-
-    // Finally, commit the surface
-    surface.commit();
-
-    Ok(())
 }
 
 fn handle_keyboard_event(
