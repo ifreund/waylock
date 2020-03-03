@@ -1,7 +1,9 @@
 mod env;
+mod input;
 mod surface;
 
 use crate::env::LockEnv;
+use crate::input::LockInput;
 use crate::surface::LockSurface;
 
 use pam::Authenticator;
@@ -10,13 +12,8 @@ use smithay_client_toolkit::{
         calloop,
         protocols::wlr::unstable::input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
     },
-    seat::{keyboard, keyboard::keysyms, with_seat_data},
+    seat::keyboard::keysyms,
     WaylandSource,
-};
-use std::{
-    cell::RefCell,
-    collections::{HashMap, VecDeque},
-    rc::Rc,
 };
 use users::get_current_username;
 
@@ -48,87 +45,9 @@ fn main() -> std::io::Result<()> {
         .map(|output| LockSurface::new(&output, &lock_env, COLOR_NORMAL))
         .collect::<Vec<_>>();
 
-    let mut seats = HashMap::new();
-    let input_queue = Rc::new(RefCell::new(VecDeque::new()));
     let mut event_loop = calloop::EventLoop::<()>::new()?;
 
-    // first process already existing seats
-    for seat in lock_env.get_all_seats() {
-        if let Some((has_kbd, name)) = with_seat_data(&seat, |seat_data| {
-            (
-                seat_data.has_keyboard && !seat_data.defunct,
-                seat_data.name.clone(),
-            )
-        }) {
-            if has_kbd {
-                let input_queue_handle = input_queue.clone();
-                match keyboard::map_keyboard(
-                    &seat,
-                    None,
-                    keyboard::RepeatKind::System,
-                    move |event, _, _| handle_keyboard_event(event, Rc::clone(&input_queue_handle)),
-                ) {
-                    Ok((kbd, repeat_source)) => {
-                        // Need to put the repeat_source in our event loop or key repitition won't
-                        // work
-                        let source = event_loop
-                            .handle()
-                            .insert_source(repeat_source, |_, _| {})?;
-                        seats.insert(name, Some((kbd, source)));
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
-                            name, e
-                        );
-                        seats.insert(name, None);
-                    }
-                }
-            } else {
-                seats.insert(name, None);
-            }
-        }
-    }
-
-    // then setup a listener for changes
-    let input_queue_handle = Rc::clone(&input_queue);
-    let loop_handle = event_loop.handle();
-    let _seat_listener = lock_env.listen_for_seats(move |seat, seat_data, _| {
-        seats
-            .entry(seat_data.name.clone())
-            .and_modify(|opt_kbd| {
-                // map a keyboard if the seat has the capability and is not defunct
-                if seat_data.has_keyboard && !seat_data.defunct {
-                    if opt_kbd.is_none() {
-                        // initalize the keyboard
-                        let input_queue_handle_handle = Rc::clone(&input_queue_handle);
-                        match keyboard::map_keyboard(
-                            &seat,
-                            None,
-                            keyboard::RepeatKind::System,
-                            move |event, _, _| {
-                                handle_keyboard_event(event, Rc::clone(&input_queue_handle_handle))
-                            },
-                        ) {
-                            Ok((kbd, repeat_source)) => {
-                                let source =
-                                    loop_handle.insert_source(repeat_source, |_, _| {}).unwrap();
-                                *opt_kbd = Some((kbd, source));
-                            }
-                            Err(e) => eprintln!(
-                                "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
-                                seat_data.name, e
-                            ),
-                        }
-                    }
-                } else if let Some((kbd, source)) = opt_kbd.take() {
-                    // the keyboard has been removed, cleanup
-                    kbd.release();
-                    source.remove();
-                }
-            })
-            .or_insert(None);
-    });
+    let lock_input = LockInput::new(&lock_env, event_loop.handle())?;
 
     let _source_queue =
         event_loop
@@ -147,7 +66,7 @@ fn main() -> std::io::Result<()> {
 
     loop {
         // Handle all input recieved since last check
-        while let Some((keysym, utf8)) = input_queue.borrow_mut().pop_front() {
+        while let Some((keysym, utf8)) = lock_input.pop() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
                     if check_password(&current_username, &current_password) {
@@ -185,23 +104,6 @@ fn main() -> std::io::Result<()> {
 
         display.flush()?;
         event_loop.dispatch(None, &mut ())?;
-    }
-}
-
-fn handle_keyboard_event(
-    event: keyboard::Event,
-    input_queue_handle: Rc<RefCell<VecDeque<(u32, Option<String>)>>>,
-) {
-    match event {
-        keyboard::Event::Key {
-            keysym,
-            state: keyboard::KeyState::Pressed,
-            utf8,
-            ..
-        } => {
-            input_queue_handle.borrow_mut().push_back((keysym, utf8));
-        }
-        _ => {}
     }
 }
 
