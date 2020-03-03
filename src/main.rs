@@ -1,12 +1,13 @@
+mod auth;
 mod env;
 mod input;
 mod surface;
 
+use crate::auth::LockAuth;
 use crate::env::LockEnv;
 use crate::input::LockInput;
 use crate::surface::LockSurface;
 
-use pam::Authenticator;
 use smithay_client_toolkit::{
     reexports::{
         calloop,
@@ -15,7 +16,6 @@ use smithay_client_toolkit::{
     seat::keyboard::keysyms,
     WaylandSource,
 };
-use users::get_current_username;
 
 // Solarized base03
 const COLOR_NORMAL: (f64, f64, f64) = (
@@ -58,10 +58,7 @@ fn main() -> std::io::Result<()> {
                 }
             })?;
 
-    let current_username = get_current_username()
-        .expect("ERROR: failed to get current username!")
-        .into_string()
-        .expect("ERROR: failed to parse current username!");
+    let lock_auth = LockAuth::new();
     let mut current_password = String::new();
 
     loop {
@@ -69,7 +66,7 @@ fn main() -> std::io::Result<()> {
         while let Some((keysym, utf8)) = lock_input.pop() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
-                    if check_password(&current_username, &current_password) {
+                    if lock_auth.check_password(&current_password) {
                         return Ok(());
                     } else {
                         for lock_surface in lock_surfaces.iter_mut() {
@@ -104,18 +101,5 @@ fn main() -> std::io::Result<()> {
 
         display.flush()?;
         event_loop.dispatch(None, &mut ())?;
-    }
-}
-
-fn check_password(login: &str, password: &str) -> bool {
-    let mut authenticator = Authenticator::with_password("system-auth")
-        .expect("ERROR: failed to initialize PAM client!");
-    authenticator.get_handler().set_credentials(login, password);
-    match authenticator.authenticate() {
-        Ok(()) => true,
-        Err(error) => {
-            eprintln!("WARNING: authentication failure {}", error);
-            false
-        }
     }
 }
