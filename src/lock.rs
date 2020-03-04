@@ -3,6 +3,8 @@ mod env;
 mod input;
 mod surface;
 
+use crate::color::Color;
+
 use self::auth::LockAuth;
 use self::env::LockEnv;
 use self::input::LockInput;
@@ -17,9 +19,7 @@ use smithay_client_toolkit::{
     WaylandSource,
 };
 
-type Color = (f64, f64, f64);
-
-pub fn lock_screen(color_normal: Color, color_invalid: Color) -> std::io::Result<()> {
+pub fn lock_screen(color: Color, fail_color: Color) -> std::io::Result<()> {
     let (lock_env, display, queue) = LockEnv::init_environment()?;
 
     let _inhibitor = lock_env
@@ -30,7 +30,7 @@ pub fn lock_screen(color_normal: Color, color_invalid: Color) -> std::io::Result
     let mut lock_surfaces = lock_env
         .get_all_outputs()
         .iter()
-        .map(|output| LockSurface::new(&output, &lock_env, color_normal))
+        .map(|output| LockSurface::new(&output, &lock_env, color))
         .collect::<Vec<_>>();
 
     let mut event_loop = calloop::EventLoop::<()>::new()?;
@@ -58,7 +58,7 @@ pub fn lock_screen(color_normal: Color, color_invalid: Color) -> std::io::Result
                         return Ok(());
                     } else {
                         for lock_surface in lock_surfaces.iter_mut() {
-                            lock_surface.set_color(color_invalid);
+                            lock_surface.set_color(fail_color);
                         }
                     }
                 }

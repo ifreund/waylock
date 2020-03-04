@@ -1,3 +1,5 @@
+use crate::color::Color;
+
 use super::env::LockEnv;
 
 use cairo::{Context, ImageSurface};
@@ -27,14 +29,14 @@ pub struct LockSurface {
     pools: DoubleMemPool,
     dimensions: (u32, u32),
     redraw: bool,
-    color: (f64, f64, f64),
+    color: Color,
 }
 
 impl LockSurface {
     pub fn new(
         output: &wl_output::WlOutput,
         lock_env: &Environment<LockEnv>,
-        color: (f64, f64, f64),
+        color: Color,
     ) -> Self {
         let surface = lock_env.create_surface();
         let layer_surface = lock_env
@@ -97,7 +99,7 @@ impl LockSurface {
     }
 
     /// Set the color of the surface. Will not take effect until handle_events() is called.
-    pub fn set_color(&mut self, color: (f64, f64, f64)) {
+    pub fn set_color(&mut self, color: Color) {
         self.color = color;
         self.redraw = true
     }
@@ -151,7 +153,7 @@ impl LockSurface {
             let context = Context::new(&image_surface);
 
             context.set_operator(cairo::Operator::Source);
-            context.set_source_rgb(self.color.0, self.color.1, self.color.2);
+            context.set_source_rgb(self.color.red, self.color.green, self.color.blue);
             context.paint();
 
             // Attach the buffer to the surface and mark the entire surface as damaged
