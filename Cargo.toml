@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 cairo-rs = "0.8.1"
+clap = "2.33.0"
 pam = "0.7.0"
 smithay-client-toolkit = "0.8.0"
 users = "0.8.1"
