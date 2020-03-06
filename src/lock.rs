@@ -2,6 +2,7 @@ mod auth;
 mod env;
 mod input;
 mod surface;
+mod output;
 
 use crate::options::Options;
 

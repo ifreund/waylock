@@ -1,7 +1,8 @@
+use super::output::LockOutputHandler;
+
 use smithay_client_toolkit::{
     environment,
     environment::{Environment, SimpleGlobal},
-    output::OutputHandler,
     reexports::{
         client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm},
         client::{Attached, DispatchData, Display, EventQueue, Proxy},
@@ -19,7 +20,7 @@ pub struct LockEnv {
     layer_shell: SimpleGlobal<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     inhibitor_manager: SimpleGlobal<zwlr_input_inhibit_manager_v1::ZwlrInputInhibitManagerV1>,
     shm: ShmHandler,
-    outputs: OutputHandler,
+    outputs: LockOutputHandler,
     seats: SeatHandler,
 }
 
@@ -57,7 +58,7 @@ impl LockEnv {
                 layer_shell: SimpleGlobal::new(),
                 inhibitor_manager: SimpleGlobal::new(),
                 shm: ShmHandler::new(),
-                outputs: OutputHandler::new(),
+                outputs: LockOutputHandler::new(),
                 seats: SeatHandler::new(),
             },
         );
