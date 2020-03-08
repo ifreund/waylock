@@ -4,6 +4,7 @@ use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg
 
 pub struct Options {
     pub color: Color,
+    pub input_color: Color,
     pub fail_color: Color,
 }
 
@@ -17,9 +18,17 @@ impl Options {
                 Arg::with_name("color")
                     .long("color")
                     .short("c")
-                    .help("Specify the color of the lock screen.")
+                    .help("Specify the initial color of the lock screen.")
                     .value_name("COLOR")
                     .default_value("ffffff")
+                    .validator(Options::validate_color),
+            )
+            .arg(
+                Arg::with_name("input-color")
+                    .long("input-color")
+                    .help("Specify the color of the lock screen after input is recieved.")
+                    .value_name("COLOR")
+                    .default_value("0000ff")
                     .validator(Options::validate_color),
             )
             .arg(
@@ -34,6 +43,7 @@ impl Options {
 
         Self {
             color: Color::new_from_hex_str(matches.value_of("color").unwrap()).unwrap(),
+            input_color: Color::new_from_hex_str(matches.value_of("input-color").unwrap()).unwrap(),
             fail_color: Color::new_from_hex_str(matches.value_of("fail-color").unwrap()).unwrap(),
         }
     }

@@ -25,6 +25,12 @@ use smithay_client_toolkit::{
 
 use std::{cell::RefCell, rc::Rc};
 
+enum LockState {
+    Empty,
+    Input,
+    Failed,
+}
+
 pub fn lock_screen(options: &Options) -> std::io::Result<()> {
     let (lock_env, display, queue) = LockEnv::init_environment()?;
 
@@ -78,6 +84,14 @@ pub fn lock_screen(options: &Options) -> std::io::Result<()> {
     let lock_auth = LockAuth::new();
     let mut current_password = String::new();
 
+    let set_color = |color| {
+        for (_, lock_surface) in lock_surfaces.borrow_mut().iter_mut() {
+            lock_surface.set_color(color);
+        }
+    };
+
+    let mut state = LockState::Empty;
+
     loop {
         // Handle all input recieved since last check
         while let Some((keysym, utf8)) = lock_input.pop() {
@@ -86,9 +100,8 @@ pub fn lock_screen(options: &Options) -> std::io::Result<()> {
                     if lock_auth.check_password(&current_password) {
                         return Ok(());
                     } else {
-                        for (_, lock_surface) in lock_surfaces.borrow_mut().iter_mut() {
-                            lock_surface.set_color(options.fail_color);
-                        }
+                        set_color(options.fail_color);
+                        state = LockState::Failed;
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
@@ -102,6 +115,18 @@ pub fn lock_screen(options: &Options) -> std::io::Result<()> {
                         current_password.push_str(&new_input);
                     }
                 }
+            }
+
+            match (&state, current_password.is_empty()) {
+                (LockState::Empty, false) => {
+                    set_color(options.input_color);
+                    state = LockState::Input;
+                }
+                (LockState::Input, true) => {
+                    set_color(options.color);
+                    state = LockState::Empty;
+                }
+                _ => {}
             }
         }
 
