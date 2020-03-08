@@ -397,17 +397,6 @@ version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "rslock"
-version = "0.1.0"
-dependencies = [
- "cairo-rs 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pam 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "smithay-client-toolkit 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "users 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "rusttype"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -610,6 +599,17 @@ version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "dlib 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "waylock"
+version = "0.1.0"
+dependencies = [
+ "cairo-rs 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pam 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smithay-client-toolkit 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "users 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

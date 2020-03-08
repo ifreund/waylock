@@ -1,5 +1,5 @@
 [package]
-name = "rslock"
+name = "waylock"
 version = "0.1.0"
 authors = ["Isaac Freund <ifreund@ifreund.xyz>"]
 edition = "2018"
