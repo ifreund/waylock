@@ -1,4 +1,4 @@
-use super::output::LockOutputHandler;
+use super::output::{LockOutputHandler, OutputHandling};
 
 use smithay_client_toolkit::{
     environment,
@@ -67,5 +67,29 @@ impl LockEnv {
         queue.sync_roundtrip(&mut (), |_, _, _| unreachable!())?;
 
         Ok((lock_env, display, queue))
+    }
+
+    pub fn set_output_created_listener<F: Fn(u32, wl_output::WlOutput) + 'static>(
+        &mut self,
+        listener: Option<F>,
+    ) {
+        self.outputs.set_created_listener(listener)
+    }
+
+    pub fn set_output_removed_listener<F: Fn(u32) + 'static>(&mut self, listener: Option<F>) {
+        self.outputs.set_removed_listener(listener)
+    }
+}
+
+impl OutputHandling for Environment<LockEnv> {
+    fn set_output_created_listener<F: Fn(u32, wl_output::WlOutput) + 'static>(
+        &self,
+        listener: Option<F>,
+    ) {
+        self.with_inner(move |inner| inner.set_output_created_listener(listener))
+    }
+
+    fn set_output_removed_listener<F: Fn(u32) + 'static>(&self, listener: Option<F>) {
+        self.with_inner(move |inner| inner.set_output_removed_listener(listener))
     }
 }

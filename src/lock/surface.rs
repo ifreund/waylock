@@ -1,13 +1,10 @@
 use crate::color::Color;
 
-use super::env::LockEnv;
-
 use cairo::{Context, ImageSurface};
 use smithay_client_toolkit::{
-    environment::Environment,
     reexports::{
-        client::protocol::{wl_output, wl_shm, wl_surface},
-        client::Main,
+        client::protocol::{wl_compositor, wl_output, wl_shm, wl_surface},
+        client::{Attached, Main},
         protocols::wlr::unstable::layer_shell::v1::client::{
             zwlr_layer_shell_v1, zwlr_layer_surface_v1,
         },
@@ -23,8 +20,8 @@ enum RenderEvent {
 }
 
 pub struct LockSurface {
-    surface: wl_surface::WlSurface,
-    _layer_surface: Main<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
+    surface: Main<wl_surface::WlSurface>,
+    layer_surface: Main<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     next_render_event: Rc<Cell<Option<RenderEvent>>>,
     pools: DoubleMemPool,
     dimensions: (u32, u32),
@@ -35,18 +32,21 @@ pub struct LockSurface {
 impl LockSurface {
     pub fn new(
         output: &wl_output::WlOutput,
-        lock_env: &Environment<LockEnv>,
+        compositor: Attached<wl_compositor::WlCompositor>,
+        layer_shell: Attached<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
+        shm: Attached<wl_shm::WlShm>,
         color: Color,
     ) -> Self {
-        let surface = lock_env.create_surface();
-        let layer_surface = lock_env
-            .require_global::<zwlr_layer_shell_v1::ZwlrLayerShellV1>()
-            .get_layer_surface(
-                &surface,
-                Some(&output),
-                zwlr_layer_shell_v1::Layer::Overlay,
-                "lockscreen".to_owned(),
-            );
+        let surface = compositor.create_surface();
+        // We don't currently care about dpi awareness, but that may need to change eventually
+        surface.quick_assign(|_, _, _| {});
+
+        let layer_surface = layer_shell.get_layer_surface(
+            &surface,
+            Some(&output),
+            zwlr_layer_shell_v1::Layer::Overlay,
+            "lockscreen".to_owned(),
+        );
 
         // TODO: set opaque region
         // Size of 0,0 indicates that the server should decide the size
@@ -83,13 +83,11 @@ impl LockSurface {
 
         // TODO: this callback should technically trigger a redraw, however it is currently very
         // unlikely to be reached
-        let pools = lock_env
-            .create_double_pool(|_| {})
-            .expect("ERROR: failed to create shm pools!");
+        let pools = DoubleMemPool::new(shm, |_| {}).expect("ERROR: failed to create shm pools!");
 
         Self {
             surface,
-            _layer_surface: layer_surface,
+            layer_surface,
             next_render_event,
             pools,
             dimensions: (0, 0),
@@ -166,5 +164,12 @@ impl LockSurface {
         } else {
             false
         }
+    }
+}
+
+impl Drop for LockSurface {
+    fn drop(&mut self) {
+        self.layer_surface.destroy();
+        self.surface.destroy();
     }
 }

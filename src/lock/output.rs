@@ -10,8 +10,8 @@ use std::boxed::Box;
 
 pub struct LockOutputHandler {
     outputs: Vec<(u32, Attached<wl_output::WlOutput>)>,
-    created_listener: Option<Box<dyn Fn(u32, wl_output::WlOutput)>>,
-    removed_listener: Option<Box<dyn Fn(u32)>>,
+    created_listener: Option<Box<dyn Fn(u32, wl_output::WlOutput) + 'static>>,
+    removed_listener: Option<Box<dyn Fn(u32) + 'static>>,
 }
 
 impl LockOutputHandler {
@@ -21,6 +21,22 @@ impl LockOutputHandler {
             created_listener: None,
             removed_listener: None,
         }
+    }
+
+    pub fn set_created_listener<F: Fn(u32, wl_output::WlOutput) + 'static>(
+        &mut self,
+        listener: Option<F>,
+    ) {
+        self.created_listener = listener.map(|f| {
+            for (id, output) in &self.outputs {
+                f(*id, output.detach());
+            }
+            Box::new(f) as _
+        });
+    }
+
+    pub fn set_removed_listener<F: Fn(u32) + 'static>(&mut self, listener: Option<F>) {
+        self.removed_listener = listener.map(|f| Box::new(f) as _);
     }
 }
 
@@ -50,4 +66,13 @@ impl MultiGlobalHandler<wl_output::WlOutput> for LockOutputHandler {
     fn get_all(&self) -> Vec<Attached<wl_output::WlOutput>> {
         self.outputs.iter().map(|(_, o)| o.clone()).collect()
     }
+}
+
+pub trait OutputHandling {
+    fn set_output_created_listener<F: Fn(u32, wl_output::WlOutput) + 'static>(
+        &self,
+        listener: Option<F>,
+    );
+
+    fn set_output_removed_listener<F: Fn(u32) + 'static>(&self, listener: Option<F>);
 }
