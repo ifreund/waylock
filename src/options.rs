@@ -58,3 +58,28 @@ impl Options {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hex_6_digit_color_valid() {
+        assert!(Options::validate_color("01abEF".to_owned()).is_ok());
+    }
+
+    #[test]
+    fn short_color_invalid() {
+        assert!(Options::validate_color("12345".to_owned()).is_err());
+    }
+
+    #[test]
+    fn long_color_invalid() {
+        assert!(Options::validate_color("1234567".to_owned()).is_err());
+    }
+
+    #[test]
+    fn non_hex_color_invalid() {
+        assert!(Options::validate_color("12z456".to_owned()).is_err());
+    }
+}
