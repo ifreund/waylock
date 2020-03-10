@@ -4,6 +4,7 @@ use xdg::BaseDirectories;
 use std::fmt;
 use std::fs;
 use std::io;
+use std::path::Path;
 use std::result::Result;
 
 #[derive(Debug)]
@@ -65,8 +66,11 @@ pub struct Colors {
 impl Config {
     /// Find and read the config file if it exists. If $XDG_CONFIG_HOME is not set, the xdg crate will
     /// properly default to $HOME/.config
-    pub fn new() -> Result<Self, ConfigError> {
-        if let Some(config_file) = BaseDirectories::with_prefix("waylock")
+    pub fn new(path_override: Option<&str>) -> Result<Self, ConfigError> {
+        if let Some(path) = path_override {
+            let config = fs::read_to_string(Path::new(path))?;
+            Ok(toml::from_str(&config)?)
+        } else if let Some(config_file) = BaseDirectories::with_prefix("waylock")
             .ok()
             .and_then(|base_dirs| base_dirs.find_config_file("waylock.toml"))
         {

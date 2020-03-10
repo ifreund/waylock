@@ -1,0 +1,4 @@
+[colors]
+init_color = 0x002b36
+input_color = 0x586e75
+fail_color = 0xdc322f

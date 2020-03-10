@@ -39,6 +39,13 @@ impl Options {
                     .default_value("ff0000")
                     .validator(Color::is_valid),
             )
+            .arg(
+                Arg::with_name("config")
+                    .long("config")
+                    // Manually document the default path here since this should stay unset by default
+                    .help("Specify an alternative config file. [default: $XDG_CONFIG_HOME/waylock/waylock.toml]")
+                    .value_name("FILE")
+            )
             .get_matches();
 
         let mut options = Self {
@@ -48,7 +55,7 @@ impl Options {
         };
 
         // It's fine if there's no config file, but if we encountered an error report it.
-        match Config::new() {
+        match Config::new(matches.value_of("config")) {
             Ok(config) => {
                 if let Some(color) = config.colors.init_color {
                     options.init_color = color.into();
