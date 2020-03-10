@@ -8,5 +8,8 @@ edition = "2018"
 cairo-rs = "0.8"
 clap = "2"
 pam = "0.7"
+serde = { version = "1", features = ["derive"] }
 smithay-client-toolkit = "0.8"
+toml = "0.5"
 users = "0.9"
+xdg = "2"

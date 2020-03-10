@@ -1,4 +1,5 @@
 use crate::color::Color;
+use crate::config::{Config, ConfigError};
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 
@@ -41,10 +42,29 @@ impl Options {
             )
             .get_matches();
 
-        Self {
-            color: Color::new_from_hex_str(matches.value_of("color").unwrap()).unwrap(),
-            input_color: Color::new_from_hex_str(matches.value_of("input-color").unwrap()).unwrap(),
-            fail_color: Color::new_from_hex_str(matches.value_of("fail-color").unwrap()).unwrap(),
-        }
+        let mut options = Self {
+            color: Color::from_hex_str(matches.value_of("color").unwrap()).unwrap(),
+            input_color: Color::from_hex_str(matches.value_of("input-color").unwrap()).unwrap(),
+            fail_color: Color::from_hex_str(matches.value_of("fail-color").unwrap()).unwrap(),
+        };
+
+        // It's fine if there's no config file, but if we encountered an error report it.
+        match Config::new() {
+            Ok(config) => {
+                if let Some(color) = config.colors.color {
+                    options.color = color.into();
+                }
+                if let Some(color) = config.colors.input_color {
+                    options.input_color = color.into();
+                }
+                if let Some(color) = config.colors.fail_color {
+                    options.fail_color = color.into();
+                }
+            }
+            Err(ConfigError::NotFound) => {}
+            Err(err) => eprintln!("{}", err),
+        };
+
+        options
     }
 }

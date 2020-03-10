@@ -8,13 +8,9 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new_from_hex_str(hex_str: &str) -> Result<Self, ParseIntError> {
+    pub fn from_hex_str(hex_str: &str) -> Result<Self, ParseIntError> {
         let hex = u32::from_str_radix(hex_str, 16)?;
-        Ok(Self {
-            red: (hex / (256 * 256)) as f64 / 255.0,
-            green: (hex / 256 % 256) as f64 / 255.0,
-            blue: (hex % 256) as f64 / 255.0,
-        })
+        Ok(hex.into())
     }
 
     pub fn is_valid(hex_str: String) -> Result<(), String> {
@@ -24,6 +20,16 @@ impl Color {
             Err(format!("{}", e))
         } else {
             Ok(())
+        }
+    }
+}
+
+impl From<u32> for Color {
+    fn from(hex: u32) -> Self {
+        Self {
+            red: (hex / (256 * 256)) as f64 / 255.0,
+            green: (hex / 256 % 256) as f64 / 255.0,
+            blue: (hex % 256) as f64 / 255.0,
         }
     }
 }
