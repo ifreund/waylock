@@ -117,6 +117,7 @@ impl LockSurface {
         if self.redraw && self.try_redraw() {
             self.redraw = false;
         }
+
         false
     }
 
@@ -160,6 +161,7 @@ impl LockSurface {
 
             // Finally, commit the surface
             self.surface.commit();
+
             true
         } else {
             false
