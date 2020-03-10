@@ -36,7 +36,7 @@ pub fn lock_screen(options: &Options) -> std::io::Result<()> {
         let compositor = lock_env.require_global::<wl_compositor::WlCompositor>();
         let layer_shell = lock_env.require_global::<zwlr_layer_shell_v1::ZwlrLayerShellV1>();
         let shm = lock_env.require_global::<wl_shm::WlShm>();
-        let color = options.color;
+        let color = options.init_color;
 
         let lock_surfaces = Rc::new(RefCell::new(Vec::new()));
 

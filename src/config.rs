@@ -57,7 +57,7 @@ pub struct Config {
 
 #[derive(Deserialize)]
 pub struct Colors {
-    pub color: Option<u32>,
+    pub init_color: Option<u32>,
     pub input_color: Option<u32>,
     pub fail_color: Option<u32>,
 }
