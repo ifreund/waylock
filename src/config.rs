@@ -4,6 +4,7 @@ use xdg::BaseDirectories;
 use std::fmt;
 use std::fs;
 use std::io;
+use std::error;
 use std::path::Path;
 use std::result::Result;
 
@@ -18,25 +19,25 @@ pub enum ConfigError {
 impl From<io::Error> for ConfigError {
     fn from(err: io::Error) -> Self {
         if err.kind() == io::ErrorKind::NotFound {
-            ConfigError::NotFound
+            Self::NotFound
         } else {
-            ConfigError::Io(err)
+            Self::Io(err)
         }
     }
 }
 
 impl From<toml::de::Error> for ConfigError {
     fn from(err: toml::de::Error) -> Self {
-        ConfigError::Toml(err)
+        Self::Toml(err)
     }
 }
 
-impl std::error::Error for ConfigError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl error::Error for ConfigError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            ConfigError::NotFound => None,
-            ConfigError::Io(err) => err.source(),
-            ConfigError::Toml(err) => err.source(),
+            Self::NotFound => None,
+            Self::Io(err) => err.source(),
+            Self::Toml(err) => err.source(),
         }
     }
 }
@@ -44,9 +45,9 @@ impl std::error::Error for ConfigError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConfigError::NotFound => write!(f, "Couldn't find the config file"),
-            ConfigError::Io(err) => write!(f, "I/O error reading the config file: {}", err),
-            ConfigError::Toml(err) => write!(f, "TOML error reading the config file: {}", err),
+            Self::NotFound => write!(f, "Couldn't find the config file"),
+            Self::Io(err) => write!(f, "I/O error reading the config file: {}", err),
+            Self::Toml(err) => write!(f, "TOML error reading the config file: {}", err),
         }
     }
 }
