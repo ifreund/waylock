@@ -23,9 +23,10 @@ use smithay_client_toolkit::{
     WaylandSource,
 };
 
+use std::io;
 use std::{cell::RefCell, rc::Rc};
 
-pub fn lock_screen(options: &Options) -> std::io::Result<()> {
+pub fn lock_screen(options: &Options) -> io::Result<()> {
     let (lock_env, display, queue) = LockEnv::init_environment()?;
 
     let _inhibitor = lock_env
@@ -130,7 +131,17 @@ pub fn lock_screen(options: &Options) -> std::io::Result<()> {
             }
         }
 
-        display.flush()?;
-        event_loop.dispatch(None, &mut ())?;
+        retry_on_interrupt(|| display.flush())?;
+        retry_on_interrupt(|| event_loop.dispatch(None, &mut ()))?;
+    }
+}
+
+fn retry_on_interrupt<T, F: FnMut() -> io::Result<T>>(mut f: F) -> io::Result<T> {
+    loop {
+        match f() {
+            Ok(val) => return Ok(val),
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) => return Err(err),
+        }
     }
 }
