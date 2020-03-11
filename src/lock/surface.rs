@@ -145,7 +145,7 @@ impl LockSurface {
         self.redraw = true
     }
 
-    /// Handles any events that have occured since the last call, redrawing if needed.
+    /// Handles any events that have occurred since the last call, redrawing if needed.
     /// Returns true if the surface should be dropped.
     pub fn handle_events(&mut self) -> bool {
         match self.next_render_event.replace(None) {
@@ -185,7 +185,7 @@ impl LockSurface {
         let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
 
         // Safety: the created cairo image surface and context go out of scope and are dropped as the
-        // wl_surface is comitted. This means that the pool, which cannot be reused until the server
+        // wl_surface is committed. This means that the pool, which cannot be reused until the server
         // releases it, will be valid for the entire lifetime of the cairo context.
         let pool_data: &'static mut [u8] = unsafe {
             let mmap = pool.mmap();

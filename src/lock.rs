@@ -88,7 +88,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
     };
 
     loop {
-        // Handle all input recieved since last check
+        // Handle all input received since last check
         while let Some((keysym, utf8)) = lock_input.pop() {
             if !recieved_input {
                 set_color(options.input_color);
@@ -117,7 +117,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
             }
         }
 
-        // This is ugly, let's hope that some version of drain_filter() gets stablized soon
+        // This is ugly, let's hope that some version of drain_filter() gets stabilized soon
         // https://github.com/rust-lang/rust/issues/43244
         {
             let mut lock_surfaces = lock_surfaces.borrow_mut();
