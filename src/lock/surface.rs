@@ -169,10 +169,7 @@ impl LockSurface {
 
     /// Attempt to redraw the surface using the current color
     fn redraw(&mut self) -> Result<(), DrawError> {
-        let pool = self
-            .pools
-            .pool()
-            .map_or(Err(DrawError::NoFreePool), |pool| Ok(pool))?;
+        let pool = self.pools.pool().map_or(Err(DrawError::NoFreePool), Ok)?;
 
         let stride = 4 * self.dimensions.0 as i32;
         let width = self.dimensions.0 as i32;
