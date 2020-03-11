@@ -1,10 +1,10 @@
 use serde::Deserialize;
 use xdg::BaseDirectories;
 
+use std::error;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::error;
 use std::path::Path;
 use std::result::Result;
 
