@@ -1,6 +1,7 @@
 mod color;
 mod config;
 mod lock;
+mod logger;
 mod options;
 
 use crate::lock::lock_screen;

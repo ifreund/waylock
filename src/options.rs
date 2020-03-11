@@ -1,5 +1,6 @@
 use crate::color::Color;
 use crate::config::{Config, ConfigError};
+use crate::logger::Logger;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 
@@ -46,7 +47,24 @@ impl Options {
                     .help("Specify an alternative config file. [default: $XDG_CONFIG_HOME/waylock/waylock.toml]")
                     .value_name("FILE")
             )
+            .arg(
+                Arg::with_name("v")
+                    .short("verbosity")
+                    .multiple(true)
+                    .help("Set the verbosity level of logging. Can be repeated for greater effect (e.g. -vvv).")
+            )
             .get_matches();
+
+        // This is fine to unwrap, as it only fails when called more than once, and this is the
+        // only call site
+        Logger::init(match matches.occurrences_of("v") {
+            0 => log::LevelFilter::Error,
+            1 => log::LevelFilter::Warn,
+            2 => log::LevelFilter::Info,
+            3 => log::LevelFilter::Debug,
+            _ => log::LevelFilter::Trace,
+        })
+        .unwrap();
 
         let mut options = Self {
             init_color: Color::from_hex_str(matches.value_of("init-color").unwrap()).unwrap(),

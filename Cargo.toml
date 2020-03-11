@@ -5,8 +5,11 @@ authors = ["Isaac Freund <ifreund@ifreund.xyz>"]
 edition = "2018"
 
 [dependencies]
+ansi_term = "0.12"
 cairo-rs = "0.8"
 clap = "2"
+humantime = "2"
+log = { version = "0.4", features = ["std"] }
 pam = "0.7"
 serde = { version = "1", features = ["derive"] }
 smithay-client-toolkit = "0.8"
