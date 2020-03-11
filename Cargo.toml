@@ -1,8 +1,14 @@
 [package]
 name = "waylock"
 version = "0.1.0"
+
 authors = ["Isaac Freund <ifreund@ifreund.xyz>"]
+description = "A simple screenlocker for wayland compositors."
 edition = "2018"
+keywords = ["wayland", "screenlocker"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/ifreund/waylock"
 
 [dependencies]
 ansi_term = "0.12"
