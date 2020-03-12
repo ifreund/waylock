@@ -21,4 +21,3 @@ serde = { version = "1", features = ["derive"] }
 smithay-client-toolkit = "0.8"
 toml = "0.5"
 users = "0.9"
-xdg = "2"

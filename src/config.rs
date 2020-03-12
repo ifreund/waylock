@@ -1,11 +1,11 @@
 use serde::Deserialize;
-use xdg::BaseDirectories;
 
+use std::env;
 use std::error;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::result::Result;
 
 #[derive(Debug)]
@@ -65,16 +65,21 @@ pub struct Colors {
 }
 
 impl Config {
-    /// Find and read the config file if it exists. If $XDG_CONFIG_HOME is not set, the xdg crate will
-    /// properly default to $HOME/.config
+    /// Find and read the config file if it exists. The following fallback order is used:
+    /// 1. manually specified config path using the --config flag
+    /// 2. $XDG_CONFIG_HOME/waylock/waylock.toml
+    /// 3. $HOME/.config/waylock/waylock.toml
     pub fn new(path_override: Option<&str>) -> Result<Self, ConfigError> {
-        if let Some(path) = path_override {
-            let config = fs::read_to_string(Path::new(path))?;
-            Ok(toml::from_str(&config)?)
-        } else if let Some(config_file) = BaseDirectories::with_prefix("waylock")
-            .ok()
-            .and_then(|base_dirs| base_dirs.find_config_file("waylock.toml"))
-        {
+        if let Some(config_file) = path_override.map(PathBuf::from).or_else(|| {
+            env::var("XDG_CONFIG_HOME")
+                .map(PathBuf::from)
+                .or_else(|_| match env::var("HOME") {
+                    Ok(home) => Ok(Path::new(&home).join(".config")),
+                    Err(err) => Err(err),
+                })
+                .map(|config_home| config_home.join("waylock/waylock.toml"))
+                .ok()
+        }) {
             let config = fs::read_to_string(config_file)?;
             Ok(toml::from_str(&config)?)
         } else {
