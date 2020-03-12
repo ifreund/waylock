@@ -126,7 +126,10 @@ impl LockSurface {
 
         // TODO: this callback should technically trigger a redraw, however it is currently very
         // unlikely to be reached
-        let pools = DoubleMemPool::new(shm, |_| {}).expect("ERROR: failed to create shm pools!");
+        let pools = DoubleMemPool::new(shm, |_| {}).unwrap_or_else(|err| {
+            log::error!("Failed to create shm pools: {}", err);
+            panic!();
+        });
 
         Self {
             surface,
@@ -160,7 +163,7 @@ impl LockSurface {
         if self.redraw {
             match self.redraw() {
                 Ok(()) => self.redraw = false,
-                Err(err) => eprintln!("{}", err),
+                Err(err) => log::error!("{}", err),
             }
         }
 

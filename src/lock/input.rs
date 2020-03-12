@@ -47,10 +47,11 @@ impl LockInput {
                             let source = loop_handle.insert_source(repeat_source, |_, _| {})?;
                             seats.insert(name, Some((kbd, source)));
                         }
-                        Err(e) => {
-                            eprintln!(
-                                "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
-                                name, e
+                        Err(err) => {
+                            log::warn!(
+                                "Ignoring seat {} due to failure to map keyboard: {:?}.",
+                                name,
+                                err
                             );
                             seats.insert(name, None);
                         }
@@ -89,10 +90,11 @@ impl LockInput {
                                         .unwrap();
                                     *opt_kbd = Some((kbd, source));
                                 }
-                                Err(e) => eprintln!(
-                                "WARNING: Ignoring seat {} due to failure to map keyboard: {:?}.",
-                                seat_data.name, e
-                            ),
+                                Err(err) => log::warn!(
+                                    "Ignoring seat {} due to failure to map keyboard: {:?}.",
+                                    seat_data.name,
+                                    err
+                                ),
                             }
                         }
                     } else if let Some((kbd, source)) = opt_kbd.take() {

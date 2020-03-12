@@ -86,7 +86,7 @@ impl Options {
                 }
             }
             Err(ConfigError::NotFound) => {}
-            Err(err) => eprintln!("{}", err),
+            Err(err) => log::error!("{}", err),
         };
 
         options

@@ -48,8 +48,10 @@ environment!(LockEnv,
 
 impl LockEnv {
     pub fn init_environment() -> std::io::Result<(Environment<Self>, Display, EventQueue)> {
-        let display =
-            Display::connect_to_env().expect("ERROR: failed to connect to a wayland server!");
+        let display = Display::connect_to_env().unwrap_or_else(|err| {
+            log::error!("Failed to connect to a wayland server: {}", err);
+            panic!();
+        });
         let mut queue = display.create_event_queue();
         let lock_env = Environment::init(
             &Proxy::clone(&display).attach(queue.token()),

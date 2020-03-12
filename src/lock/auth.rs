@@ -8,23 +8,34 @@ pub struct LockAuth {
 impl LockAuth {
     pub fn new() -> Self {
         let login = get_current_username()
-            .expect("ERROR: failed to get current username!")
+            .unwrap_or_else(|| {
+                log::error!("Failed to get current username.");
+                panic!();
+            })
             .into_string()
-            .expect("ERROR: failed to parse current username!");
+            .unwrap_or_else(|_| {
+                log::error!("Failed to parse the current username.");
+                panic!();
+            });
         Self { login }
     }
 
     /// Attempt to authenticate with PAM. Returns true on success, otherwise false.
     pub fn check_password(&self, password: &str) -> bool {
-        let mut authenticator = Authenticator::with_password("system-auth")
-            .expect("ERROR: failed to initialize PAM client!");
+        let mut authenticator = match Authenticator::with_password("system-auth") {
+            Ok(authenticator) => authenticator,
+            Err(err) => {
+                log::error!("Failed to initialize PAM client: {}", err);
+                panic!();
+            }
+        };
         authenticator
             .get_handler()
             .set_credentials(&self.login, password);
         match authenticator.authenticate() {
             Ok(()) => true,
-            Err(error) => {
-                eprintln!("WARNING: authentication failure {}", error);
+            Err(err) => {
+                log::warn!("Authentication failure {}", err);
                 false
             }
         }
