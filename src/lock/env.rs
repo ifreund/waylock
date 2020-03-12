@@ -15,6 +15,8 @@ use smithay_client_toolkit::{
     shm::ShmHandler,
 };
 
+use std::io;
+
 pub struct LockEnv {
     compositor: SimpleGlobal<wl_compositor::WlCompositor>,
     layer_shell: SimpleGlobal<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
@@ -47,7 +49,7 @@ environment!(LockEnv,
 );
 
 impl LockEnv {
-    pub fn init_environment() -> std::io::Result<(Environment<Self>, Display, EventQueue)> {
+    pub fn init_environment() -> io::Result<(Environment<Self>, Display, EventQueue)> {
         let display = Display::connect_to_env().unwrap_or_else(|err| {
             log::error!("Failed to connect to a wayland server: {}", err);
             panic!();

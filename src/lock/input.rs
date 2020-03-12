@@ -8,6 +8,7 @@ use smithay_client_toolkit::{
 use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
+    io,
     rc::Rc,
 };
 
@@ -16,10 +17,7 @@ pub struct LockInput {
 }
 
 impl LockInput {
-    pub fn new(
-        lock_env: &Environment<LockEnv>,
-        loop_handle: LoopHandle<()>,
-    ) -> std::io::Result<Self> {
+    pub fn new(lock_env: &Environment<LockEnv>, loop_handle: LoopHandle<()>) -> io::Result<Self> {
         let mut seats = HashMap::new();
         let input_queue = Rc::new(RefCell::new(VecDeque::new()));
 
