@@ -65,7 +65,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
 
     let mut event_loop = calloop::EventLoop::<()>::new()?;
 
-    let lock_input = LockInput::new(&lock_env, event_loop.handle())?;
+    let lock_input = LockInput::new(&lock_env, event_loop.handle());
 
     let _source_queue =
         event_loop
