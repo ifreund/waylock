@@ -15,6 +15,7 @@ type InputQueue = Rc<RefCell<VecDeque<(u32, Option<String>)>>>;
 
 pub struct LockInput {
     input_queue: InputQueue,
+    _seat_listener: seat::SeatListener,
 }
 
 struct LockSeat {
@@ -120,7 +121,7 @@ impl LockInput {
             seat_handler(seat, seat_data);
         });
 
-        Self { input_queue }
+        Self { input_queue, _seat_listener }
     }
 
     pub fn pop(&self) -> Option<(u32, Option<String>)> {
