@@ -27,7 +27,7 @@ impl Options {
             .arg(
                 Arg::with_name("input-color")
                     .long("input-color")
-                    .help("Specify the color of the lock screen after input is recieved.")
+                    .help("Specify the color of the lock screen after input is received.")
                     .value_name("COLOR")
                     .default_value("0000ff")
                     .validator(Color::is_valid),
