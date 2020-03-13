@@ -11,10 +11,7 @@ pub struct Logger {
 
 impl Logger {
     fn new(level_filter: log::LevelFilter) -> Self {
-        Self {
-            level_filter,
-            use_color: atty::is(atty::Stream::Stderr),
-        }
+        Self { level_filter, use_color: atty::is(atty::Stream::Stderr) }
     }
 
     pub fn init(level_filter: log::LevelFilter) -> Result<(), log::SetLoggerError> {
@@ -46,11 +43,7 @@ impl log::Log for Logger {
                 timestamp,
                 record.module_path().unwrap_or("<unknown>"),
                 // TODO: get rid of these allocations
-                if self.use_color {
-                    color.paint(text).to_string()
-                } else {
-                    text.to_owned()
-                },
+                if self.use_color { color.paint(text).to_string() } else { text.to_owned() },
                 record.args()
             );
         }

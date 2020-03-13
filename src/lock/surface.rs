@@ -11,11 +11,9 @@ use smithay_client_toolkit::{
     shm::DoubleMemPool,
 };
 
-use std::error;
-use std::fmt;
-use std::io;
-use std::slice;
-use std::{cell::Cell, rc::Rc};
+use std::cell::Cell;
+use std::rc::Rc;
+use std::{error, fmt, io, slice};
 
 #[derive(PartialEq, Copy, Clone)]
 enum RenderEvent {
@@ -106,14 +104,9 @@ impl LockSurface {
                 (zwlr_layer_surface_v1::Event::Closed, _) => {
                     next_render_event_handle.set(Some(RenderEvent::Close));
                 }
-                (
-                    zwlr_layer_surface_v1::Event::Configure {
-                        serial,
-                        width,
-                        height,
-                    },
-                    next,
-                ) if next != Some(RenderEvent::Close) => {
+                (zwlr_layer_surface_v1::Event::Configure { serial, width, height }, next)
+                    if next != Some(RenderEvent::Close) =>
+                {
                     layer_surface.ack_configure(serial);
                     next_render_event_handle.set(Some(RenderEvent::Configure { width, height }));
                 }

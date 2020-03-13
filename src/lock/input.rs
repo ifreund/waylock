@@ -6,7 +6,10 @@ use smithay_client_toolkit::{
     reexports::client::protocol::{wl_keyboard, wl_pointer},
     seat::{self, keyboard},
 };
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+
+use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::rc::Rc;
 
 type InputQueue = Rc<RefCell<VecDeque<(u32, Option<String>)>>>;
 
@@ -23,12 +26,7 @@ struct LockSeat {
 
 impl LockSeat {
     fn new(name: &str) -> Self {
-        Self {
-            name: name.to_owned(),
-            keyboard: None,
-            repeat_source: None,
-            pointer: None,
-        }
+        Self { name: name.to_owned(), keyboard: None, repeat_source: None, pointer: None }
     }
 }
 
@@ -132,12 +130,9 @@ impl LockInput {
 
 fn handle_keyboard_event(event: keyboard::Event, input_queue: InputQueue) {
     match event {
-        keyboard::Event::Key {
-            keysym,
-            state: keyboard::KeyState::Pressed,
-            utf8,
-            ..
-        } => input_queue.borrow_mut().push_back((keysym, utf8)),
+        keyboard::Event::Key { keysym, state: keyboard::KeyState::Pressed, utf8, .. } => {
+            input_queue.borrow_mut().push_back((keysym, utf8))
+        }
         keyboard::Event::Repeat { keysym, utf8, .. } => {
             input_queue.borrow_mut().push_back((keysym, utf8));
         }

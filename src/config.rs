@@ -1,12 +1,8 @@
 use serde::Deserialize;
 
-use std::env;
-use std::error;
-use std::fmt;
-use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::result::Result;
+use std::{env, error, fmt, fs, io};
 
 #[derive(Debug)]
 pub enum ConfigError {

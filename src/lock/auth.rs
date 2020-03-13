@@ -29,9 +29,7 @@ impl LockAuth {
                 panic!();
             }
         };
-        authenticator
-            .get_handler()
-            .set_credentials(&self.login, password);
+        authenticator.get_handler().set_credentials(&self.login, password);
         match authenticator.authenticate() {
             Ok(()) => true,
             Err(err) => {

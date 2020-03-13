@@ -23,8 +23,9 @@ use smithay_client_toolkit::{
     WaylandSource,
 };
 
+use std::cell::RefCell;
 use std::io;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 pub fn lock_screen(options: &Options) -> io::Result<()> {
     let (lock_env, display, queue) = LockEnv::init_environment()?;
@@ -68,13 +69,11 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
     let lock_input = LockInput::new(&lock_env, event_loop.handle());
 
     let _source_queue =
-        event_loop
-            .handle()
-            .insert_source(WaylandSource::new(queue), |ret, _| {
-                if let Err(e) = ret {
-                    panic!("Wayland connection lost: {:?}", e);
-                }
-            })?;
+        event_loop.handle().insert_source(WaylandSource::new(queue), |ret, _| {
+            if let Err(e) = ret {
+                panic!("Wayland connection lost: {:?}", e);
+            }
+        })?;
 
     let lock_auth = LockAuth::new();
     let mut current_password = String::new();

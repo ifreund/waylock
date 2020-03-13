@@ -6,10 +6,8 @@ use smithay_client_toolkit::{
     reexports::{
         client::protocol::{wl_compositor, wl_output, wl_seat, wl_shm},
         client::{Attached, DispatchData, Display, EventQueue, Proxy},
-        protocols::wlr::unstable::{
-            input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
-            layer_shell::v1::client::zwlr_layer_shell_v1,
-        },
+        protocols::wlr::unstable::input_inhibitor::v1::client::zwlr_input_inhibit_manager_v1,
+        protocols::wlr::unstable::layer_shell::v1::client::zwlr_layer_shell_v1,
     },
     seat::{SeatData, SeatHandler, SeatHandling, SeatListener},
     shm::ShmHandler,

@@ -1,9 +1,7 @@
 use smithay_client_toolkit::{
     environment::MultiGlobalHandler,
-    reexports::{
-        client::protocol::{wl_output, wl_registry},
-        client::{Attached, DispatchData},
-    },
+    reexports::client::protocol::{wl_output, wl_registry},
+    reexports::client::{Attached, DispatchData},
 };
 
 use std::boxed::Box;
@@ -16,11 +14,7 @@ pub struct LockOutputHandler {
 
 impl LockOutputHandler {
     pub fn new() -> Self {
-        Self {
-            outputs: Vec::new(),
-            created_listener: None,
-            removed_listener: None,
-        }
+        Self { outputs: Vec::new(), created_listener: None, removed_listener: None }
     }
 
     pub fn set_created_listener<F: Fn(u32, wl_output::WlOutput) + 'static>(
