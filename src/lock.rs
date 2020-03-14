@@ -48,8 +48,8 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
                 id,
                 LockSurface::new(
                     &output,
-                    compositor.clone(),
-                    layer_shell.clone(),
+                    &compositor.clone(),
+                    &layer_shell.clone(),
                     shm.clone(),
                     color,
                 ),

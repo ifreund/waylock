@@ -43,9 +43,8 @@ impl From<cairo::Status> for DrawError {
 impl error::Error for DrawError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Self::NoFreePool => None,
+            Self::NoFreePool | Self::Cairo(_) => None,
             Self::Io(err) => err.source(),
-            Self::Cairo(_) => None,
         }
     }
 }
@@ -73,8 +72,8 @@ pub struct LockSurface {
 impl LockSurface {
     pub fn new(
         output: &wl_output::WlOutput,
-        compositor: Attached<wl_compositor::WlCompositor>,
-        layer_shell: Attached<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
+        compositor: &Attached<wl_compositor::WlCompositor>,
+        layer_shell: &Attached<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
         shm: Attached<wl_shm::WlShm>,
         color: Color,
     ) -> Self {

@@ -60,9 +60,7 @@ impl LockInput {
                         &seat,
                         None,
                         keyboard::RepeatKind::System,
-                        move |event, _, _| {
-                            handle_keyboard_event(event, Rc::clone(&input_queue_handle_handle))
-                        },
+                        move |event, _, _| handle_keyboard_event(event, &input_queue_handle_handle),
                     ) {
                         Ok((kbd, src)) => {
                             lock_seat.keyboard = Some(kbd);
@@ -89,7 +87,7 @@ impl LockInput {
                 // If the seat has no keyboard capability but we have a keyboard stored, release it
                 // as well as the repeat source if it exists.
                 kbd.release();
-                lock_seat.repeat_source.take().map(|src| src.remove());
+                lock_seat.repeat_source.take().map(calloop::Source::remove);
             }
 
             if seat_data.has_pointer && !seat_data.defunct {
@@ -111,7 +109,7 @@ impl LockInput {
 
         // Process currently existing seats
         for seat in lock_env.get_all_seats() {
-            if let Some(seat_data) = seat::with_seat_data(&seat, |seat_data| seat_data.clone()) {
+            if let Some(seat_data) = seat::with_seat_data(&seat, Clone::clone) {
                 seat_handler(seat.clone(), &seat_data);
             }
         }
@@ -129,7 +127,7 @@ impl LockInput {
     }
 }
 
-fn handle_keyboard_event(event: keyboard::Event, input_queue: InputQueue) {
+fn handle_keyboard_event(event: keyboard::Event, input_queue: &InputQueue) {
     match event {
         keyboard::Event::Key { keysym, state: keyboard::KeyState::Pressed, utf8, .. } => {
             input_queue.borrow_mut().push_back((keysym, utf8))

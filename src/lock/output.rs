@@ -4,8 +4,6 @@ use smithay_client_toolkit::{
     reexports::client::{Attached, DispatchData},
 };
 
-use std::boxed::Box;
-
 pub struct LockOutputHandler {
     outputs: Vec<(u32, Attached<wl_output::WlOutput>)>,
     created_listener: Option<Box<dyn Fn(u32, wl_output::WlOutput) + 'static>>,
