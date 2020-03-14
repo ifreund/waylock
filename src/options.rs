@@ -4,6 +4,8 @@ use crate::logger::Logger;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 
+use std::str::FromStr;
+
 pub struct Options {
     pub init_color: Color,
     pub input_color: Color,
@@ -12,6 +14,11 @@ pub struct Options {
 
 impl Options {
     pub fn new() -> Self {
+        let valid_color = |s: String| match Color::from_str(&s) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err.to_string()),
+        };
+
         let matches = App::new(crate_name!())
             .version(crate_version!())
             .author(crate_authors!("\n"))
@@ -21,24 +28,24 @@ impl Options {
                     .long("init-color")
                     .help("Specify the initial color of the lock screen.")
                     .value_name("COLOR")
-                    .default_value("ffffff")
-                    .validator(Color::is_valid),
+                    .default_value("#ffffff")
+                    .validator(valid_color),
             )
             .arg(
                 Arg::with_name("input-color")
                     .long("input-color")
                     .help("Specify the color of the lock screen after input is received.")
                     .value_name("COLOR")
-                    .default_value("0000ff")
-                    .validator(Color::is_valid),
+                    .default_value("#0000ff")
+                    .validator(valid_color),
             )
             .arg(
                 Arg::with_name("fail-color")
                     .long("fail-color")
                     .help("Specify the color of the lock screen on authentication failure.")
                     .value_name("COLOR")
-                    .default_value("ff0000")
-                    .validator(Color::is_valid),
+                    .default_value("#ff0000")
+                    .validator(valid_color),
             )
             .arg(
                 Arg::with_name("config")
@@ -67,9 +74,9 @@ impl Options {
         .unwrap();
 
         let mut options = Self {
-            init_color: Color::from_hex_str(matches.value_of("init-color").unwrap()).unwrap(),
-            input_color: Color::from_hex_str(matches.value_of("input-color").unwrap()).unwrap(),
-            fail_color: Color::from_hex_str(matches.value_of("fail-color").unwrap()).unwrap(),
+            init_color: Color::from_str(matches.value_of("init-color").unwrap()).unwrap(),
+            input_color: Color::from_str(matches.value_of("input-color").unwrap()).unwrap(),
+            fail_color: Color::from_str(matches.value_of("fail-color").unwrap()).unwrap(),
         };
 
         // It's fine if there's no config file, but if we encountered an error report it.
