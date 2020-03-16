@@ -81,6 +81,13 @@ impl LockSurface {
         // We don't currently care about dpi awareness, but that may need to change eventually
         surface.quick_assign(|_, _, _| {});
 
+        // Mark the entire surface as opaque. This isn't strictly required, but serves as an
+        // optimization hit for the compositor
+        let region = compositor.create_region();
+        region.add(0, 0, i32::max_value(), i32::max_value());
+        surface.set_opaque_region(Some(&region));
+        region.destroy();
+
         let layer_surface = layer_shell.get_layer_surface(
             &surface,
             Some(&output),
@@ -88,7 +95,6 @@ impl LockSurface {
             "lockscreen".to_owned(),
         );
 
-        // TODO: set opaque region
         // Size of 0,0 indicates that the server should decide the size
         layer_surface.set_size(0, 0);
         // Anchor to all edges of the output, filling it entirely
@@ -143,7 +149,7 @@ impl LockSurface {
     /// Handles any events that have occurred since the last call, redrawing if needed.
     /// Returns true if the surface should be dropped.
     pub fn handle_events(&mut self) -> bool {
-        match self.next_render_event.replace(None) {
+        match self.next_render_event.take() {
             Some(RenderEvent::Close) => return true,
             Some(RenderEvent::Configure { width, height }) => {
                 self.dimensions = (width, height);
