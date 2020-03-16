@@ -52,7 +52,14 @@ impl MultiGlobalHandler<wl_output::WlOutput> for LockOutputHandler {
         if let Some(listener) = &self.removed_listener {
             listener(id);
         }
-        self.outputs.retain(|(i, _)| *i != id);
+        self.outputs.retain(|(i, o)| {
+            if *i == id {
+                o.release();
+                false
+            } else {
+                true
+            }
+        });
     }
 
     fn get_all(&self) -> Vec<Attached<wl_output::WlOutput>> {
