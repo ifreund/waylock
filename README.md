@@ -3,11 +3,11 @@
 Waylock is a simple screenlocker for wayland compositors. It takes inspiration
 from [slock](https://tools.suckless.org/slock/) with its minimalistic feature
 set, but is implemented in [rust](https://www.rust-lang.org/) for first class
-saftey and security.
+safety and security.
 
-Waylock will work with any wayland compositior supporting the `wlr-layer-shell` and
+Waylock will work with any wayland compositor supporting the `wlr-layer-shell` and
 `wlr-input-inhibitor` protocols. In general, this means 
-[wlroots](https://github.com/swaywm/wlroots)-based compositiors such as
+[wlroots](https://github.com/swaywm/wlroots)-based compositors such as
 [sway](https://github.com/swaywm/sway).
 
 ### Installation
@@ -17,6 +17,8 @@ Waylock can be manually compiled from source or installed using [cargo](https://
 ```sh
 $ cargo install waylock --locked
 ```
+
+It is also available from the [Arch User Repository](https://aur.archlinux.org/packages/waylock/).
 
 ### Usage
 
