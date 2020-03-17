@@ -19,6 +19,8 @@ impl Options {
             Err(err) => Err(err.to_string()),
         };
 
+        // We manually document the default values so that they can override values specified in the
+        // config file.
         let matches = App::new(crate_name!())
             .version(crate_version!())
             .author(crate_authors!())
@@ -26,36 +28,39 @@ impl Options {
             .arg(
                 Arg::with_name("init-color")
                     .long("init-color")
-                    .help("Specify the initial color of the lock screen. [default: #ffffff]")
+                    .help("Set the initial color of the lock screen. [default: #ffffff]")
+                    .next_line_help(true)
                     .value_name("COLOR")
                     .validator(valid_color),
             )
             .arg(
                 Arg::with_name("input-color")
                     .long("input-color")
-                    .help("Specify the color of the lock screen after input is received. [default: #0000ff]")
+                    .help("Set the color of the lock screen after input is received. [default: #0000ff]")
+                    .next_line_help(true)
                     .value_name("COLOR")
                     .validator(valid_color),
             )
             .arg(
                 Arg::with_name("fail-color")
                     .long("fail-color")
-                    .help("Specify the color of the lock screen on authentication failure. [default: #ff0000]")
+                    .help("Set the color of the lock screen on authentication failure. [default: #ff0000]")
+                    .next_line_help(true)
                     .value_name("COLOR")
                     .validator(valid_color),
             )
             .arg(
                 Arg::with_name("config")
                     .long("config")
-                    // Manually document the default path here since this should stay unset by default
-                    .help("Specify an alternative config file. [default: $XDG_CONFIG_HOME/waylock/waylock.toml]")
+                    .help("Use an alternative config file. [default: $XDG_CONFIG_HOME/waylock/waylock.toml]")
+                    .next_line_help(true)
                     .value_name("FILE")
             )
             .arg(
                 Arg::with_name("v")
                     .short("verbosity")
                     .multiple(true)
-                    .help("Set the verbosity level of logging. Can be repeated for greater effect (e.g. -vvv).")
+                    .help("Enable verbose logging, repeat for greater effect (e.g. -vvv).")
             )
             .get_matches();
 
