@@ -1,6 +1,44 @@
 # waylock
 
-This is a simple screenlocker for wayland compositors supporting the
-`wlr-layer-shell` and `wlr-input-inhibitor` protocols. This means that it will
-work with [wlroots](https://github.com/swaywm/wlroots)-based compositiors such
-as [sway](https://github.com/swaywm/sway).
+Waylock is a simple screenlocker for wayland compositors. It takes inspiration
+from [slock](https://tools.suckless.org/slock/) with its minimalistic feature
+set, but is implemented in [rust](https://www.rust-lang.org/) for first class
+saftey and security.
+
+Waylock will work with any wayland compositior supporting the `wlr-layer-shell` and
+`wlr-input-inhibitor` protocols. In general, this means 
+[wlroots](https://github.com/swaywm/wlroots)-based compositiors such as
+[sway](https://github.com/swaywm/sway).
+
+### Installation
+
+Waylock can be manually compiled from source or installed using [cargo](https://github.com/rust-lang/cargo).
+
+```sh
+$ cargo install waylock --locked
+```
+
+### Usage
+
+```
+USAGE:
+    waylock [FLAGS] [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -v               Enable verbose logging, repeat for greater effect (e.g. -vvv).
+    -V, --version    Prints version information
+
+OPTIONS:
+        --config <FILE>
+            Use an alternative config file. [default: $XDG_CONFIG_HOME/waylock/waylock.toml]
+
+        --fail-color <COLOR>
+            Set the color of the lock screen on authentication failure. [default: #ff0000]
+
+        --init-color <COLOR>
+            Set the initial color of the lock screen. [default: #ffffff]
+
+        --input-color <COLOR>
+            Set the color of the lock screen after input is received. [default: #0000ff]
+```
