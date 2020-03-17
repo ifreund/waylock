@@ -26,25 +26,22 @@ impl Options {
             .arg(
                 Arg::with_name("init-color")
                     .long("init-color")
-                    .help("Specify the initial color of the lock screen.")
+                    .help("Specify the initial color of the lock screen. [default: #ffffff]")
                     .value_name("COLOR")
-                    .default_value("#ffffff")
                     .validator(valid_color),
             )
             .arg(
                 Arg::with_name("input-color")
                     .long("input-color")
-                    .help("Specify the color of the lock screen after input is received.")
+                    .help("Specify the color of the lock screen after input is received. [default: #0000ff]")
                     .value_name("COLOR")
-                    .default_value("#0000ff")
                     .validator(valid_color),
             )
             .arg(
                 Arg::with_name("fail-color")
                     .long("fail-color")
-                    .help("Specify the color of the lock screen on authentication failure.")
+                    .help("Specify the color of the lock screen on authentication failure. [default: #ff0000]")
                     .value_name("COLOR")
-                    .default_value("#ff0000")
                     .validator(valid_color),
             )
             .arg(
@@ -73,29 +70,26 @@ impl Options {
         })
         .unwrap();
 
-        let mut options = Self {
-            init_color: Color::from_str(matches.value_of("init-color").unwrap()).unwrap(),
-            input_color: Color::from_str(matches.value_of("input-color").unwrap()).unwrap(),
-            fail_color: Color::from_str(matches.value_of("fail-color").unwrap()).unwrap(),
-        };
+        // The vaildator supplied to clap will deny any colors that can't be safetly unwrapped.
+        let mut init_color = matches.value_of("init-color").map(|s| Color::from_str(s).unwrap());
+        let mut input_color = matches.value_of("input-color").map(|s| Color::from_str(s).unwrap());
+        let mut fail_color = matches.value_of("fail-color").map(|s| Color::from_str(s).unwrap());
 
         // It's fine if there's no config file, but if we encountered an error report it.
         match Config::new(matches.value_of("config")) {
             Ok(config) => {
-                if let Some(color) = config.colors.init_color {
-                    options.init_color = color.into();
-                }
-                if let Some(color) = config.colors.input_color {
-                    options.input_color = color.into();
-                }
-                if let Some(color) = config.colors.fail_color {
-                    options.fail_color = color.into();
-                }
+                init_color = init_color.or_else(|| config.colors.init_color.map(Color::from));
+                input_color = input_color.or_else(|| config.colors.input_color.map(Color::from));
+                fail_color = fail_color.or_else(|| config.colors.fail_color.map(Color::from));
             }
             Err(ConfigError::NotFound) => {}
             Err(err) => log::error!("{}", err),
         };
 
-        options
+        Self {
+            init_color: init_color.unwrap_or(Color { red: 1.0, blue: 1.0, green: 1.0 }),
+            input_color: input_color.unwrap_or(Color { red: 0.0, blue: 1.0, green: 0.0 }),
+            fail_color: fail_color.unwrap_or(Color { red: 1.0, blue: 0.0, green: 0.0 }),
+        }
     }
 }
