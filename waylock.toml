@@ -1,3 +1,8 @@
+# waylock.toml
+
+# If set to true, never revert the color after input or failure.
+one_way = false
+
 [colors]
 # Specify the initial color of the lock screen.
 init_color = 0x002b36

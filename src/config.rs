@@ -49,6 +49,7 @@ impl fmt::Display for ConfigError {
 
 #[derive(Deserialize)]
 pub struct Config {
+    pub one_way: Option<bool>,
     pub colors: Colors,
 }
 

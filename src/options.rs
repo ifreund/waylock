@@ -7,6 +7,7 @@ use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg
 use std::str::FromStr;
 
 pub struct Options {
+    pub one_way: bool,
     pub init_color: Color,
     pub input_color: Color,
     pub fail_color: Color,
@@ -57,6 +58,11 @@ impl Options {
                     .value_name("FILE")
             )
             .arg(
+                Arg::with_name("one-way")
+                    .long("one-way")
+                    .help("Never revert the color after input or failure.")
+            )
+            .arg(
                 Arg::with_name("v")
                     .short("verbosity")
                     .multiple(true)
@@ -75,6 +81,8 @@ impl Options {
         })
         .unwrap();
 
+        let mut one_way = if matches.is_present("one-way") { Some(true) } else { None };
+
         // The vaildator supplied to clap will deny any colors that can't be safetly unwrapped.
         let mut init_color = matches.value_of("init-color").map(|s| Color::from_str(s).unwrap());
         let mut input_color = matches.value_of("input-color").map(|s| Color::from_str(s).unwrap());
@@ -83,6 +91,7 @@ impl Options {
         // It's fine if there's no config file, but if we encountered an error report it.
         match Config::new(matches.value_of("config")) {
             Ok(config) => {
+                one_way = one_way.or(config.one_way);
                 init_color = init_color.or_else(|| config.colors.init_color.map(Color::from));
                 input_color = input_color.or_else(|| config.colors.input_color.map(Color::from));
                 fail_color = fail_color.or_else(|| config.colors.fail_color.map(Color::from));
@@ -91,7 +100,9 @@ impl Options {
             Err(err) => log::error!("{}", err),
         };
 
+        // These unwrap_or's are the defaults
         Self {
+            one_way: one_way.unwrap_or(false),
             init_color: init_color.unwrap_or(Color { red: 1.0, blue: 1.0, green: 1.0 }),
             input_color: input_color.unwrap_or(Color { red: 0.0, blue: 1.0, green: 0.0 }),
             fail_color: fail_color.unwrap_or(Color { red: 1.0, blue: 0.0, green: 0.0 }),
