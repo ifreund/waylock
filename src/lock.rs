@@ -27,6 +27,13 @@ use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
 
+#[derive(Copy, Clone)]
+enum LockState {
+    Init,
+    Input,
+    Fail,
+}
+
 pub fn lock_screen(options: &Options) -> io::Result<()> {
     let (lock_env, display, queue) = LockEnv::init_environment()?;
 
@@ -78,7 +85,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
     let lock_auth = LockAuth::new();
     let mut current_password = String::new();
 
-    let mut recieved_input = false;
+    let mut lock_state = LockState::Init;
 
     let set_color = |color| {
         for (_, lock_surface) in lock_surfaces.borrow_mut().iter_mut() {
@@ -89,17 +96,13 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
     loop {
         // Handle all input received since last check
         while let Some((keysym, utf8)) = lock_input.pop() {
-            if !recieved_input {
-                set_color(options.input_color);
-                recieved_input = true;
-            }
-
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
                     if lock_auth.check_password(&current_password) {
                         return Ok(());
                     } else {
                         set_color(options.fail_color);
+                        lock_state = LockState::Fail;
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {
@@ -113,6 +116,18 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
                         current_password.push_str(&new_input);
                     }
                 }
+            }
+
+            match (lock_state, current_password.is_empty()) {
+                (LockState::Init, false) => {
+                    set_color(options.input_color);
+                    lock_state = LockState::Input;
+                }
+                (_, true) if !options.one_way => {
+                    set_color(options.init_color);
+                    lock_state = LockState::Init;
+                }
+                _ => {}
             }
         }
 
