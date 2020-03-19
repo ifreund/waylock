@@ -28,6 +28,7 @@ USAGE:
 
 FLAGS:
     -h, --help       Prints help information
+        --one-way    Never revert the color after input or failure.
     -v               Enable verbose logging, repeat for greater effect (e.g. -vvv).
     -V, --version    Prints version information
 
