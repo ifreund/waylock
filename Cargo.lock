@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "waylock"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "ansi_term 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "atty 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
