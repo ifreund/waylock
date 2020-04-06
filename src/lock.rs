@@ -25,6 +25,7 @@ use smithay_client_toolkit::{
 
 use std::cell::RefCell;
 use std::io;
+use std::process::Command;
 use std::rc::Rc;
 
 #[derive(Copy, Clone)]
@@ -103,6 +104,12 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
                     } else {
                         set_color(options.fail_color);
                         lock_state = LockState::Fail;
+
+                        if let Some(command) = &options.fail_command {
+                            if let Err(err) = Command::new("sh").arg("-c").arg(command).spawn() {
+                                log::warn!("Error executing fail command \"{}\": {}", command, err);
+                            }
+                        }
                     }
                 }
                 keysyms::XKB_KEY_Delete | keysyms::XKB_KEY_BackSpace => {

@@ -39,6 +39,9 @@ OPTIONS:
         --fail-color <COLOR>
             Set the color of the lock screen on authentication failure. [default: #ff0000]
 
+        --fail-command <COMMAND>
+            Command to run on authentication failure. Executed with `sh -c <COMMAND>`.
+
         --init-color <COLOR>
             Set the initial color of the lock screen. [default: #ffffff]
 

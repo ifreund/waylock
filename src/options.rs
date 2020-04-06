@@ -8,6 +8,8 @@ use std::str::FromStr;
 
 pub struct Options {
     pub one_way: bool,
+    pub fail_command: Option<String>,
+
     pub init_color: Color,
     pub input_color: Color,
     pub fail_color: Color,
@@ -63,6 +65,13 @@ impl Options {
                     .help("Never revert the color after input or failure.")
             )
             .arg(
+                Arg::with_name("fail-command")
+                    .long("fail-command")
+                    .help("Command to run on authentication failure. Executed with `sh -c <COMMAND>`.")
+                    .next_line_help(true)
+                    .value_name("COMMAND")
+            )
+            .arg(
                 Arg::with_name("v")
                     .short("verbosity")
                     .multiple(true)
@@ -83,6 +92,8 @@ impl Options {
 
         let mut one_way = if matches.is_present("one-way") { Some(true) } else { None };
 
+        let mut fail_command = matches.value_of("fail-command").map(str::to_owned);
+
         // The vaildator supplied to clap will deny any colors that can't be safetly unwrapped.
         let mut init_color = matches.value_of("init-color").map(|s| Color::from_str(s).unwrap());
         let mut input_color = matches.value_of("input-color").map(|s| Color::from_str(s).unwrap());
@@ -92,6 +103,7 @@ impl Options {
         match Config::new(matches.value_of("config")) {
             Ok(config) => {
                 one_way = one_way.or(config.one_way);
+                fail_command = fail_command.or_else(|| config.fail_command.clone());
                 init_color = init_color.or_else(|| config.colors.init_color.map(Color::from));
                 input_color = input_color.or_else(|| config.colors.input_color.map(Color::from));
                 fail_color = fail_color.or_else(|| config.colors.fail_color.map(Color::from));
@@ -103,6 +115,7 @@ impl Options {
         // These unwrap_or's are the defaults
         Self {
             one_way: one_way.unwrap_or(false),
+            fail_command,
             init_color: init_color.unwrap_or(Color { red: 1.0, blue: 1.0, green: 1.0 }),
             input_color: input_color.unwrap_or(Color { red: 0.0, blue: 1.0, green: 0.0 }),
             fail_color: fail_color.unwrap_or(Color { red: 1.0, blue: 0.0, green: 0.0 }),
