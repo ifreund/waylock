@@ -1,5 +1,7 @@
 # waylock.toml
 
+# Note: all fields are optional. If omitted a default value will be used.
+
 # If set to true, never revert the color after input or failure.
 one_way = false
 

@@ -51,7 +51,7 @@ impl fmt::Display for ConfigError {
 pub struct Config {
     pub one_way: Option<bool>,
     pub fail_command: Option<String>,
-    pub colors: Colors,
+    pub colors: Option<Colors>,
 }
 
 #[derive(Deserialize)]
