@@ -104,9 +104,11 @@ impl Options {
             Ok(config) => {
                 one_way = one_way.or(config.one_way);
                 fail_command = fail_command.or_else(|| config.fail_command.clone());
-                init_color = init_color.or_else(|| config.colors.init_color.map(Color::from));
-                input_color = input_color.or_else(|| config.colors.input_color.map(Color::from));
-                fail_color = fail_color.or_else(|| config.colors.fail_color.map(Color::from));
+                if let Some(colors) = &config.colors {
+                    init_color = init_color.or_else(|| colors.init_color.map(Color::from));
+                    input_color = input_color.or_else(|| colors.input_color.map(Color::from));
+                    fail_color = fail_color.or_else(|| colors.fail_color.map(Color::from));
+                }
             }
             Err(ConfigError::NotFound) => {}
             Err(err) => log::error!("{}", err),
