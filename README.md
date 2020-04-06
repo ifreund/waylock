@@ -51,5 +51,5 @@ OPTIONS:
 
 Some examples of what `--fail-command` could be used for include:
 - Playing an alarm sound with `mpv alarm.ogg`
-- Taking a screenshot of with the webcam using, for example [xawtv](https://www.linuxtv.org/wiki/index.php/Xawtv).
+- Taking a screenshot with the webcam using, for example [xawtv](https://www.linuxtv.org/wiki/index.php/Xawtv).
 - Sending an email with, for example, [sendmail](https://linux.die.net/man/8/sendmail.sendmail).
