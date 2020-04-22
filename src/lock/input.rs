@@ -20,14 +20,13 @@ pub struct LockInput {
 
 struct LockSeat {
     name: String,
-    keyboard: Option<wl_keyboard::WlKeyboard>,
-    repeat_source: Option<calloop::Source<keyboard::RepeatSource>>,
+    keyboard: Option<(wl_keyboard::WlKeyboard, calloop::Source<keyboard::RepeatSource>)>,
     pointer: Option<wl_pointer::WlPointer>,
 }
 
 impl LockSeat {
     fn new(name: &str) -> Self {
-        Self { name: name.to_owned(), keyboard: None, repeat_source: None, pointer: None }
+        Self { name: name.to_owned(), keyboard: None, pointer: None }
     }
 }
 
@@ -56,25 +55,15 @@ impl LockInput {
                 // If the seat has the keyboard capability and is not yet handled, initialize a handler.
                 if lock_seat.keyboard.is_none() {
                     let input_queue_handle_handle = Rc::clone(&input_queue_handle);
-                    match keyboard::map_keyboard(
+                    match keyboard::map_keyboard_repeat(
+                        loop_handle.clone(),
                         &seat,
                         None,
                         keyboard::RepeatKind::System,
                         move |event, _, _| handle_keyboard_event(event, &input_queue_handle_handle),
                     ) {
-                        Ok((kbd, src)) => {
-                            lock_seat.keyboard = Some(kbd);
-                            // If inserting the RepeatSource into the event loop fails we won't get
-                            // key repetition, but it's nothing to panic!() about.
-                            lock_seat.repeat_source = match loop_handle
-                                .insert_source(src, |_, _| {})
-                            {
-                                Ok(src) => Some(src),
-                                Err(err) => {
-                                    log::error!("Failed to insert keyboard repeat source into event loop: {}", err.error);
-                                    None
-                                }
-                            }
+                        Ok((kbd, repeat_source)) => {
+                            lock_seat.keyboard = Some((kbd, repeat_source));
                         }
                         Err(err) => log::error!(
                             "Failed to map seat '{}' keyboard: {:?}",
@@ -83,11 +72,11 @@ impl LockInput {
                         ),
                     }
                 }
-            } else if let Some(kbd) = lock_seat.keyboard.take() {
+            } else if let Some((kbd, repeat_source)) = lock_seat.keyboard.take() {
                 // If the seat has no keyboard capability but we have a keyboard stored, release it
                 // as well as the repeat source if it exists.
                 kbd.release();
-                lock_seat.repeat_source.take().map(calloop::Source::remove);
+                loop_handle.remove(repeat_source);
             }
 
             if seat_data.has_pointer && !seat_data.defunct {

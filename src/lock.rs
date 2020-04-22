@@ -72,16 +72,11 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
         lock_surfaces
     };
 
-    let mut event_loop = calloop::EventLoop::<()>::new()?;
+    let mut event_loop = calloop::EventLoop::new()?;
 
     let lock_input = LockInput::new(&lock_env, event_loop.handle());
 
-    let _source_queue =
-        event_loop.handle().insert_source(WaylandSource::new(queue), |ret, _| {
-            if let Err(e) = ret {
-                panic!("Wayland connection lost: {:?}", e);
-            }
-        })?;
+    WaylandSource::new(queue).quick_insert(event_loop.handle())?;
 
     let lock_auth = LockAuth::new();
     let mut current_password = String::new();
