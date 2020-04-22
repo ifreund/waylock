@@ -28,6 +28,6 @@ humantime = "2"
 log = { version = "0.4", features = ["std"] }
 pam = "0.7"
 serde = { version = "1", features = ["derive"] }
-smithay-client-toolkit = { version = "0.8", default-features = false, features = ["calloop"] }
+smithay-client-toolkit = { version = "0.9", default-features = false, features = ["calloop"] }
 toml = "0.5"
-users = "0.9"
+users = "0.10"
