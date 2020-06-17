@@ -28,6 +28,8 @@ humantime = "2"
 log = { version = "0.4", features = ["std"] }
 pam = "0.7"
 serde = { version = "1", features = ["derive"] }
+# See https://github.com/ifreund/waylock/issues/19
+wayland-client = { version = "0.26", features = ["use_system_lib"] }
 smithay-client-toolkit = { version = "0.9", default-features = false, features = ["calloop"] }
 toml = "0.5"
 users = "0.10"
