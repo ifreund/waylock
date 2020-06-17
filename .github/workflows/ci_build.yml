@@ -26,7 +26,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
       - run: |
-          sudo apt-get install libpam0g-dev
+          sudo apt-get install libwayland-dev libpam0g-dev
       - uses: actions-rs/cargo@v1
         with:
           command: test
