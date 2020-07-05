@@ -26,7 +26,6 @@ impl fmt::Display for Error {
     }
 }
 
-
 pub fn from_str(s: &str) -> Result<u32, Error> {
     let digits = if s.starts_with("0x") {
         &s[2..]

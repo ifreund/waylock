@@ -34,7 +34,7 @@ impl From<io::Error> for DrawError {
 impl error::Error for DrawError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Self::NoFreePool  => None,
+            Self::NoFreePool => None,
             Self::Io(err) => err.source(),
         }
     }
@@ -173,7 +173,7 @@ impl LockSurface {
         let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
 
         // Write the current color to the buffer
-        for (ptr, byte) in pool.mmap().as_mut().iter_mut().zip(self.color.to_ne_bytes().iter().cycle()) {
+        for (ptr, byte) in pool.mmap().iter_mut().zip(self.color.to_ne_bytes().iter().cycle()) {
             *ptr = *byte;
         }
 

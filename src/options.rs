@@ -103,9 +103,10 @@ impl Options {
                 one_way = one_way.or(config.one_way);
                 fail_command = fail_command.or_else(|| config.fail_command.clone());
                 if let Some(colors) = &config.colors {
-                    init_color = init_color.or_else(|| colors.init_color.map(|c| 0xff00_0000 | c));
-                    input_color = input_color.or_else(|| colors.input_color.map(|c| 0xff00_0000 | c));
-                    fail_color = fail_color.or_else(|| colors.fail_color.map(|c| 0xff00_0000 | c));
+                    let make_solid = |c| 0xff00_0000 | c;
+                    init_color = init_color.or_else(|| colors.init_color.map(make_solid));
+                    input_color = input_color.or_else(|| colors.input_color.map(make_solid));
+                    fail_color = fail_color.or_else(|| colors.fail_color.map(make_solid));
                 }
             }
             Err(ConfigError::NotFound) => {}
