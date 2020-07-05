@@ -1,23 +1,21 @@
-use crate::color::Color;
+use crate::color;
 use crate::config::{Config, ConfigError};
 use crate::logger::Logger;
 
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 
-use std::str::FromStr;
-
 pub struct Options {
     pub one_way: bool,
     pub fail_command: Option<String>,
 
-    pub init_color: Color,
-    pub input_color: Color,
-    pub fail_color: Color,
+    pub init_color: u32,
+    pub input_color: u32,
+    pub fail_color: u32,
 }
 
 impl Options {
     pub fn new() -> Self {
-        let valid_color = |s: String| match Color::from_str(&s) {
+        let valid_color = |s: String| match color::from_str(&s) {
             Ok(_) => Ok(()),
             Err(err) => Err(err.to_string()),
         };
@@ -95,9 +93,9 @@ impl Options {
         let mut fail_command = matches.value_of("fail-command").map(str::to_owned);
 
         // The vaildator supplied to clap will deny any colors that can't be safetly unwrapped.
-        let mut init_color = matches.value_of("init-color").map(|s| Color::from_str(s).unwrap());
-        let mut input_color = matches.value_of("input-color").map(|s| Color::from_str(s).unwrap());
-        let mut fail_color = matches.value_of("fail-color").map(|s| Color::from_str(s).unwrap());
+        let mut init_color = matches.value_of("init-color").map(|s| color::from_str(s).unwrap());
+        let mut input_color = matches.value_of("input-color").map(|s| color::from_str(s).unwrap());
+        let mut fail_color = matches.value_of("fail-color").map(|s| color::from_str(s).unwrap());
 
         // It's fine if there's no config file, but if we encountered an error report it.
         match Config::new(matches.value_of("config")) {
@@ -105,9 +103,9 @@ impl Options {
                 one_way = one_way.or(config.one_way);
                 fail_command = fail_command.or_else(|| config.fail_command.clone());
                 if let Some(colors) = &config.colors {
-                    init_color = init_color.or_else(|| colors.init_color.map(Color::from));
-                    input_color = input_color.or_else(|| colors.input_color.map(Color::from));
-                    fail_color = fail_color.or_else(|| colors.fail_color.map(Color::from));
+                    init_color = init_color.or_else(|| colors.init_color.map(|c| 0xff00_0000 | c));
+                    input_color = input_color.or_else(|| colors.input_color.map(|c| 0xff00_0000 | c));
+                    fail_color = fail_color.or_else(|| colors.fail_color.map(|c| 0xff00_0000 | c));
                 }
             }
             Err(ConfigError::NotFound) => {}
@@ -118,9 +116,9 @@ impl Options {
         Self {
             one_way: one_way.unwrap_or(false),
             fail_command,
-            init_color: init_color.unwrap_or(Color { red: 1.0, blue: 1.0, green: 1.0 }),
-            input_color: input_color.unwrap_or(Color { red: 0.0, blue: 1.0, green: 0.0 }),
-            fail_color: fail_color.unwrap_or(Color { red: 1.0, blue: 0.0, green: 0.0 }),
+            init_color: init_color.unwrap_or(0xffff_ffff),
+            input_color: input_color.unwrap_or(0xff00_00ff),
+            fail_color: fail_color.unwrap_or(0xffff_0000),
         }
     }
 }

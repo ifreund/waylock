@@ -1,5 +1,3 @@
-use crate::color::Color;
-
 use smithay_client_toolkit::{
     reexports::{
         client::protocol::{wl_compositor, wl_output, wl_shm, wl_surface},
@@ -13,7 +11,7 @@ use smithay_client_toolkit::{
 
 use std::cell::Cell;
 use std::rc::Rc;
-use std::{error, fmt, io, slice};
+use std::{error, fmt, io};
 
 #[derive(PartialEq, Copy, Clone)]
 enum RenderEvent {
@@ -25,7 +23,6 @@ enum RenderEvent {
 enum DrawError {
     NoFreePool,
     Io(io::Error),
-    Cairo(cairo::Status),
 }
 
 impl From<io::Error> for DrawError {
@@ -34,16 +31,10 @@ impl From<io::Error> for DrawError {
     }
 }
 
-impl From<cairo::Status> for DrawError {
-    fn from(status: cairo::Status) -> Self {
-        Self::Cairo(status)
-    }
-}
-
 impl error::Error for DrawError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            Self::NoFreePool | Self::Cairo(_) => None,
+            Self::NoFreePool  => None,
             Self::Io(err) => err.source(),
         }
     }
@@ -54,7 +45,6 @@ impl fmt::Display for DrawError {
         match self {
             Self::NoFreePool => write!(f, "No free shm pool for drawing"),
             Self::Io(err) => write!(f, "I/O error while drawing: {}", err),
-            Self::Cairo(status) => write!(f, "Cairo error while drawing: {}", status),
         }
     }
 }
@@ -66,7 +56,7 @@ pub struct LockSurface {
     pools: DoubleMemPool,
     dimensions: (u32, u32),
     redraw: bool,
-    color: Color,
+    color: u32,
 }
 
 impl LockSurface {
@@ -75,7 +65,7 @@ impl LockSurface {
         compositor: &Attached<wl_compositor::WlCompositor>,
         layer_shell: &Attached<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
         shm: Attached<wl_shm::WlShm>,
-        color: Color,
+        color: u32,
     ) -> Self {
         let surface = compositor.create_surface();
         // We don't currently care about dpi awareness, but that may need to change eventually
@@ -141,7 +131,7 @@ impl LockSurface {
     }
 
     /// Set the color of the surface. Will not take effect until handle_events() is called.
-    pub fn set_color(&mut self, color: Color) {
+    pub fn set_color(&mut self, color: u32) {
         self.color = color;
         self.redraw = true
     }
@@ -182,25 +172,10 @@ impl LockSurface {
         // Create a new buffer from the pool
         let buffer = pool.buffer(0, width, height, stride, wl_shm::Format::Argb8888);
 
-        // Safety: the created cairo image surface and context go out of scope and are dropped as the
-        // wl_surface is committed. This means that the pool, which cannot be reused until the server
-        // releases it, will be valid for the entire lifetime of the cairo context.
-        let pool_data: &'static mut [u8] = unsafe {
-            let mmap = pool.mmap();
-            slice::from_raw_parts_mut(mmap.as_mut_ptr(), mmap.len())
-        };
-        let image_surface = cairo::ImageSurface::create_for_data(
-            pool_data,
-            cairo::Format::ARgb32,
-            width,
-            height,
-            stride,
-        )?;
-        let context = cairo::Context::new(&image_surface);
-
-        context.set_operator(cairo::Operator::Source);
-        context.set_source_rgb(self.color.red, self.color.green, self.color.blue);
-        context.paint();
+        // Write the current color to the buffer
+        for (ptr, byte) in pool.mmap().as_mut().iter_mut().zip(self.color.to_ne_bytes().iter().cycle()) {
+            *ptr = *byte;
+        }
 
         // Attach the buffer to the surface and mark the entire surface as damaged
         self.surface.attach(Some(&buffer), 0, 0);
