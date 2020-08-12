@@ -8,7 +8,7 @@ safety and security.
 Waylock will work with any wayland compositor implementing the `wlr-layer-shell` and
 `wlr-input-inhibitor` protocols. In general, this means 
 [wlroots](https://github.com/swaywm/wlroots)-based compositors such as
-[river](https://githubg.com/ifreund/river) or
+[river](https://github.com/ifreund/river) or
 [sway](https://github.com/swaywm/sway).
 
 ### Installation
