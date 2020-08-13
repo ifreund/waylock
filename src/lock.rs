@@ -91,7 +91,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
 
     loop {
         // Handle all input received since last check
-        while let Some((keysym, utf8)) = lock_input.pop() {
+        while let Some((keysym, utf8, mod_state)) = lock_input.pop() {
             match keysym {
                 keysyms::XKB_KEY_KP_Enter | keysyms::XKB_KEY_Return => {
                     if lock_auth.check_password(&current_password) {
@@ -112,6 +112,11 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
                 }
                 keysyms::XKB_KEY_Escape => {
                     current_password.clear();
+                }
+                keysyms::XKB_KEY_u => {
+                    if mod_state.ctrl {
+                        current_password.clear()
+                    }
                 }
                 _ => {
                     if let Some(new_input) = utf8 {

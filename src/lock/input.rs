@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-type InputQueue = Rc<RefCell<VecDeque<(u32, Option<String>)>>>;
+type InputQueue = Rc<RefCell<VecDeque<(u32, Option<String>, keyboard::ModifiersState)>>>;
 
 pub struct LockInput {
     input_queue: InputQueue,
@@ -35,6 +35,14 @@ impl LockInput {
         let input_queue = Rc::new(RefCell::new(VecDeque::new()));
 
         let mut lock_seats: Vec<LockSeat> = Vec::new();
+        let mut mod_state = keyboard::ModifiersState {
+            ctrl: false,
+            alt: false,
+            shift: false,
+            caps_lock: false,
+            logo: false,
+            num_lock: false,
+        };
 
         let input_queue_handle = Rc::clone(&input_queue);
         let mut seat_handler = move |seat, seat_data: &seat::SeatData| {
@@ -60,7 +68,9 @@ impl LockInput {
                         &seat,
                         None,
                         keyboard::RepeatKind::System,
-                        move |event, _, _| handle_keyboard_event(event, &input_queue_handle_handle),
+                        move |event, _, _| {
+                            handle_keyboard_event(event, &input_queue_handle_handle, &mut mod_state)
+                        },
                     ) {
                         Ok((kbd, repeat_source)) => {
                             lock_seat.keyboard = Some((kbd, repeat_source));
@@ -111,19 +121,24 @@ impl LockInput {
         Self { input_queue, _seat_listener }
     }
 
-    pub fn pop(&self) -> Option<(u32, Option<String>)> {
+    pub fn pop(&self) -> Option<(u32, Option<String>, keyboard::ModifiersState)> {
         self.input_queue.borrow_mut().pop_front()
     }
 }
 
-fn handle_keyboard_event(event: keyboard::Event, input_queue: &InputQueue) {
+fn handle_keyboard_event(
+    event: keyboard::Event,
+    input_queue: &InputQueue,
+    mod_state: &mut keyboard::ModifiersState,
+) {
     match event {
         keyboard::Event::Key { keysym, state: keyboard::KeyState::Pressed, utf8, .. } => {
-            input_queue.borrow_mut().push_back((keysym, utf8))
+            input_queue.borrow_mut().push_back((keysym, utf8, *mod_state))
         }
         keyboard::Event::Repeat { keysym, utf8, .. } => {
-            input_queue.borrow_mut().push_back((keysym, utf8));
+            input_queue.borrow_mut().push_back((keysym, utf8, *mod_state));
         }
+        keyboard::Event::Modifiers { modifiers } => *mod_state = modifiers,
         _ => {}
     }
 }
