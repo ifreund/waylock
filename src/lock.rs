@@ -113,11 +113,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
                 keysyms::XKB_KEY_Escape => {
                     current_password.clear();
                 }
-                keysyms::XKB_KEY_u => {
-                    if mod_state.ctrl {
-                        current_password.clear()
-                    }
-                }
+                keysyms::XKB_KEY_u if mod_state.ctrl => current_password.clear(),
                 _ => {
                     if let Some(new_input) = utf8 {
                         current_password.push_str(&new_input);
