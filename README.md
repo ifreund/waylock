@@ -6,14 +6,17 @@ set, but is implemented in [rust](https://www.rust-lang.org/) for first class
 safety and security.
 
 Waylock will work with any wayland compositor implementing the `wlr-layer-shell` and
-`wlr-input-inhibitor` protocols. In general, this means 
+`wlr-input-inhibitor` protocols. In general, this means
 [wlroots](https://github.com/swaywm/wlroots)-based compositors such as
 [river](https://github.com/ifreund/river) or
 [sway](https://github.com/swaywm/sway).
 
 ### Installation
 
-Waylock can be manually compiled from source or installed using [cargo](https://github.com/rust-lang/cargo).
+Waylock can be manually compiled from source or installed using
+[cargo](https://github.com/rust-lang/cargo). Note that waylock links against
+`libpam` and you will need the relevant headers installed on your system to
+build waylock.
 
 ```sh
 $ cargo install waylock --locked
