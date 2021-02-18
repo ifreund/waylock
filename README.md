@@ -22,7 +22,8 @@ build waylock.
 $ cargo install waylock --locked
 ```
 
-It is also available from the [Arch User Repository](https://aur.archlinux.org/packages/waylock/).
+It is also packaged for several linux distributions:
+[https://repology.org/project/waylock/versions](https://repology.org/project/waylock/versions).
 
 ### Usage
 
@@ -53,7 +54,9 @@ OPTIONS:
             Set the color of the lock screen after input is received. [default: #0000ff]
 ```
 
+Detaching waylock from the controlling terminal to run as a daemon can be accomplished with `setsid(1)`.
+
 Some examples of what `--fail-command` could be used for include:
-- Playing an alarm sound with `mpv alarm.ogg`
-- Taking a screenshot with the webcam using, for example [xawtv](https://www.linuxtv.org/wiki/index.php/Xawtv).
-- Sending an email with, for example, [sendmail](https://linux.die.net/man/8/sendmail.sendmail).
+- Playing an alarm sound
+- Taking a screenshot with the webcam
+- Sending an email to yourself
