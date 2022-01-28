@@ -37,10 +37,10 @@ impl MultiGlobalHandler<wl_output::WlOutput> for LockOutputHandler {
         &mut self,
         registry: Attached<wl_registry::WlRegistry>,
         id: u32,
-        version: u32,
+        _version: u32,
         _data: DispatchData,
     ) {
-        let output = registry.bind::<wl_output::WlOutput>(version, id);
+        let output = registry.bind::<wl_output::WlOutput>(1, id);
         output.quick_assign(|_, _, _| { /* ignore all events */ });
         self.outputs.push((id, (*output).clone()));
         if let Some(listener) = &self.created_listener {
