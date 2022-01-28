@@ -53,7 +53,7 @@ impl LockEnv {
             panic!();
         });
         let mut queue = display.create_event_queue();
-        let lock_env = Environment::init(
+        let lock_env = Environment::new_pending(
             &Proxy::clone(&display).attach(queue.token()),
             LockEnv {
                 compositor: SimpleGlobal::new(),

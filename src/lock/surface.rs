@@ -90,7 +90,7 @@ impl LockSurface {
         // Anchor to all edges of the output, filling it entirely
         layer_surface.set_anchor(zwlr_layer_surface_v1::Anchor::all());
         layer_surface.set_exclusive_zone(-1);
-        layer_surface.set_keyboard_interactivity(1);
+        layer_surface.set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive);
 
         let next_render_event = Rc::new(Cell::new(None::<RenderEvent>));
         let next_render_event_handle = Rc::clone(&next_render_event);

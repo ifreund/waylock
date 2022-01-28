@@ -20,7 +20,7 @@ pub struct LockInput {
 
 struct LockSeat {
     name: String,
-    keyboard: Option<(wl_keyboard::WlKeyboard, calloop::Source<keyboard::RepeatSource>)>,
+    keyboard: Option<(wl_keyboard::WlKeyboard, calloop::RegistrationToken)>,
     pointer: Option<wl_pointer::WlPointer>,
 }
 
@@ -31,7 +31,7 @@ impl LockSeat {
 }
 
 impl LockInput {
-    pub fn new(lock_env: &Environment<LockEnv>, loop_handle: calloop::LoopHandle<()>) -> Self {
+    pub fn new(lock_env: &Environment<LockEnv>, loop_handle: calloop::LoopHandle<'static, ()>) -> Self {
         let input_queue = Rc::new(RefCell::new(VecDeque::new()));
 
         let mut lock_seats: Vec<LockSeat> = Vec::new();

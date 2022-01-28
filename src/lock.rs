@@ -72,7 +72,7 @@ pub fn lock_screen(options: &Options) -> io::Result<()> {
         lock_surfaces
     };
 
-    let mut event_loop = calloop::EventLoop::new()?;
+    let mut event_loop = calloop::EventLoop::<()>::try_new()?;
 
     let lock_input = LockInput::new(&lock_env, event_loop.handle());
 
