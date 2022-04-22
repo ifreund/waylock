@@ -22,6 +22,7 @@ pub fn build(b: *Builder) void {
     waylock.linkLibC();
     waylock.linkSystemLibrary("wayland-client");
     waylock.linkSystemLibrary("xkbcommon");
+    waylock.linkSystemLibrary("pam");
 
     // TODO: remove when https://github.com/ziglang/zig/issues/131 is implemented
     scanner.addCSource(waylock);

@@ -141,6 +141,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
         },
         .key => |ev| {
             if (ev.state != .pressed) return;
+            if (seat.lock.state == .exiting) return;
 
             const xkb_state = seat.xkb_state orelse return;
 
@@ -155,10 +156,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
 
             switch (@enumToInt(keysym)) {
                 xkb.Keysym.Return => lock.submit_password(),
-                xkb.Keysym.Escape => {
-                    std.crypto.utils.secureZero(u8, lock.password.slice());
-                    lock.password.resize(0) catch unreachable;
-                },
+                xkb.Keysym.Escape => lock.clear_password(),
                 else => {
                     const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
                     lock.password.resize(lock.password.len + used) catch {

@@ -10,6 +10,7 @@ const wl = wayland.client.wl;
 const ext = wayland.client.ext;
 
 const xkb = @import("xkbcommon");
+const pam = @import("pam.zig");
 
 const Output = @import("Output.zig");
 const Seat = @import("Seat.zig");
@@ -38,10 +39,29 @@ seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
 
 xkb_context: *xkb.Context,
-// TODO ensure buffer size is large enough for PAM limits.
+pamh: *pam.Handle,
 password: std.BoundedArray(u8, 1024) = .{ .buffer = undefined },
 
 pub fn run() void {
+    var lock: Lock = undefined;
+
+    const conv: pam.Conv = .{
+        .conv = converse,
+        .appdata_ptr = &lock,
+    };
+    var pamh: *pam.Handle = undefined;
+
+    {
+        const pw = getpwuid(os.linux.getuid()) orelse {
+            fatal("failed to get name of current user", .{});
+        };
+
+        const result = pam.start("system-auth", pw.pw_name, &conv, &pamh);
+        if (result != .success) {
+            fatal("failed to initialize PAM: {s}", .{result.description()});
+        }
+    }
+
     const display = wl.Display.connect(null) catch |e| {
         fatal("failed to connect to a wayland compositor: {s}", .{@errorName(e)});
     };
@@ -49,8 +69,9 @@ pub fn run() void {
 
     const xkb_context = xkb.Context.new(.no_flags) orelse fatal_oom();
 
-    var lock: Lock = .{
+    lock = .{
         .xkb_context = xkb_context,
+        .pamh = pamh,
     };
     defer lock.deinit();
 
@@ -221,16 +242,82 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
 pub fn submit_password(lock: *Lock) void {
     assert(lock.state == .locked);
 
-    // TODO ask PAM and use the real password
-    if (std.mem.eql(u8, lock.password.slice(), "foobar")) {
-        std.crypto.utils.secureZero(u8, lock.password.slice());
-        lock.password.resize(0) catch unreachable;
+    log.info("starting PAM authentication", .{});
+
+    const auth_result = lock.pamh.authenticate(0);
+    lock.clear_password();
+
+    if (auth_result == .success) {
+        log.info("PAM authentication succeeded", .{});
+
+        // We don't need to prevent unlocking if this fails. Failure just
+        // means that some extra things like Kerberos might not work without
+        // user intervention.
+        const setcred_result = lock.pamh.setcred(pam.flags.reinitialize_cred);
+        if (setcred_result != .success) {
+            log.err("PAM failed to reinitialize credentials: {s}", .{
+                setcred_result.description(),
+            });
+        }
+
+        const end_result = lock.pamh.end(setcred_result);
+        if (end_result != .success) {
+            log.err("PAM deinitialization failed: {s}", .{end_result});
+        }
 
         lock.session_lock.?.unlockAndDestroy();
         lock.session_lock = null;
 
         lock.state = .exiting;
+    } else {
+        log.err("PAM authentication failed: {s}", .{auth_result.description()});
+
+        if (auth_result == .abort) {
+            const end_result = lock.pamh.end(auth_result);
+            if (end_result != .success) {
+                log.err("PAM deinitialization failed: {s}", .{end_result});
+            }
+            os.exit(1);
+        }
     }
+}
+
+fn converse(
+    num_msg: c_int,
+    msg: [*]*const pam.Message,
+    resp: *[*]pam.Response,
+    appdata_ptr: ?*anyopaque,
+) callconv(.C) pam.Result {
+    const ally = std.heap.raw_c_allocator;
+    const lock = @ptrCast(*Lock, @alignCast(@alignOf(Lock), appdata_ptr.?));
+
+    const count = @intCast(usize, num_msg);
+    const responses = ally.alloc(pam.Response, count) catch {
+        return .buf_err;
+    };
+
+    for (msg[0..count]) |message, i| {
+        switch (message.msg_style) {
+            .prompt_echo_off => {
+                const password = ally.dupeZ(u8, lock.password.slice()) catch {
+                    return .buf_err;
+                };
+                responses[i] = .{
+                    .resp = password,
+                };
+            },
+            .prompt_echo_on, .error_msg, .text_info => {},
+        }
+    }
+
+    resp.* = responses.ptr;
+
+    return .success;
+}
+
+pub fn clear_password(lock: *Lock) void {
+    std.crypto.utils.secureZero(u8, lock.password.slice());
+    lock.password.resize(0) catch unreachable;
 }
 
 fn fatal(comptime format: []const u8, args: anytype) noreturn {
@@ -245,3 +332,19 @@ fn fatal_oom() noreturn {
 fn fatal_not_advertised(comptime Global: type) noreturn {
     fatal("{s} not advertised", .{Global.getInterface().name});
 }
+
+// TODO: upstream these to the zig standard library
+pub const passwd = extern struct {
+    pw_name: [*:0]const u8,
+    pw_passwd: [*:0]const u8,
+    pw_uid: os.uid_t,
+    pw_gid: os.gid_t,
+    pw_change: os.time_t,
+    pw_class: [*:0]const u8,
+    pw_gecos: [*:0]const u8,
+    pw_dir: [*:0]const u8,
+    pw_shell: [*:0]const u8,
+    pw_expire: os.time_t,
+};
+
+pub extern fn getpwuid(uid: os.uid_t) ?*passwd;
