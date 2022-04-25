@@ -10,7 +10,8 @@ const wl = wayland.client.wl;
 const ext = wayland.client.ext;
 
 const xkb = @import("xkbcommon");
-const pam = @import("pam.zig");
+
+const auth = @import("auth.zig");
 
 const Output = @import("Output.zig");
 const Seat = @import("Seat.zig");
@@ -30,6 +31,9 @@ state: enum {
     exiting,
 } = .initializing,
 
+pollfds: [2]os.pollfd,
+
+display: *wl.Display,
 shm: ?*wl.Shm = null,
 compositor: ?*wl.Compositor = null,
 session_lock_manager: ?*ext.SessionLockManagerV1 = null,
@@ -39,44 +43,48 @@ seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
 
 xkb_context: *xkb.Context,
-pamh: *pam.Handle,
-password: std.BoundedArray(u8, 1024) = .{ .buffer = undefined },
+password: std.BoundedArray(u8, auth.password_size_max) = .{ .buffer = undefined },
+auth_connection: auth.Connection,
 
 pub fn run() void {
-    var lock: Lock = undefined;
-
-    const conv: pam.Conv = .{
-        .conv = converse,
-        .appdata_ptr = &lock,
-    };
-    var pamh: *pam.Handle = undefined;
-
-    {
-        const pw = getpwuid(os.linux.getuid()) orelse {
-            fatal("failed to get name of current user", .{});
-        };
-
-        const result = pam.start("system-auth", pw.pw_name, &conv, &pamh);
-        if (result != .success) {
-            fatal("failed to initialize PAM: {s}", .{result.description()});
-        }
-    }
-
-    const display = wl.Display.connect(null) catch |e| {
-        fatal("failed to connect to a wayland compositor: {s}", .{@errorName(e)});
-    };
-    const registry = display.getRegistry() catch fatal_oom();
-
-    const xkb_context = xkb.Context.new(.no_flags) orelse fatal_oom();
-
-    lock = .{
-        .xkb_context = xkb_context,
-        .pamh = pamh,
+    var lock: Lock = .{
+        .pollfds = undefined,
+        .display = wl.Display.connect(null) catch |err| {
+            fatal("failed to connect to a wayland compositor: {s}", .{@errorName(err)});
+        },
+        .xkb_context = xkb.Context.new(.no_flags) orelse fatal_oom(),
+        .auth_connection = auth.fork_child() catch |err| {
+            fatal("failed to fork child authentication process: {s}", .{@errorName(err)});
+        },
     };
     defer lock.deinit();
 
+    const poll_wayland = 0;
+    const poll_auth = 1;
+
+    lock.pollfds[poll_wayland] = .{
+        .fd = lock.display.getFd(),
+        .events = os.POLL.IN,
+        .revents = 0,
+    };
+    lock.pollfds[poll_auth] = .{
+        .fd = lock.auth_connection.read_fd,
+        .events = os.POLL.IN,
+        .revents = 0,
+    };
+
+    const registry = lock.display.getRegistry() catch fatal_oom();
     registry.setListener(*Lock, registry_listener, &lock);
-    _ = display.roundtrip() catch |e| fatal("initial roundtrip failed: {s}", .{@errorName(e)});
+
+    {
+        const errno = os.errno(lock.display.roundtrip());
+        switch (errno) {
+            .SUCCESS => {},
+            else => {
+                fatal("initial roundtrip failed: {s}", .{@tagName(errno)});
+            },
+        }
+    }
 
     if (lock.shm == null) fatal_not_advertised(wl.Shm);
     if (lock.compositor == null) fatal_not_advertised(wl.Compositor);
@@ -100,24 +108,92 @@ pub fn run() void {
                 log.err("out of memory", .{});
                 node.data.wl_output.release();
                 gpa.destroy(node);
-                return;
+                continue;
             };
             lock.outputs.prepend(node);
         }
     }
 
     while (lock.state != .exiting) {
-        _ = display.dispatch() catch |err| {
-            // TODO are there any errors here that we can handle without exiting?
-            fatal("wayland display dispatch failed: {s}", .{@errorName(err)});
+        while (!lock.display.prepareRead()) {
+            const errno = os.errno(lock.display.dispatchPending());
+            switch (errno) {
+                .SUCCESS => {},
+                else => {
+                    fatal("failed to dispatch pending wayland events: E{s}", .{@tagName(errno)});
+                },
+            }
+        }
+
+        lock.flush_wayland_requests();
+
+        _ = os.poll(&lock.pollfds, -1) catch |err| {
+            fatal("poll() failed: {s}", .{@errorName(err)});
         };
+
+        if (lock.pollfds[poll_wayland].revents & os.POLL.IN != 0) {
+            const errno = os.errno(lock.display.readEvents());
+            switch (errno) {
+                .SUCCESS => {},
+                else => {
+                    fatal("error reading wayland events: {s}", .{@tagName(errno)});
+                },
+            }
+        } else {
+            lock.display.cancelRead();
+        }
+
+        if (lock.pollfds[poll_auth].revents & os.POLL.IN != 0) {
+            const byte = lock.auth_connection.reader().readByte() catch |err| {
+                fatal("failed to read response from child authentication process: {s}", .{@errorName(err)});
+            };
+            switch (byte) {
+                @boolToInt(true) => {
+                    lock.session_lock.?.unlockAndDestroy();
+                    lock.session_lock = null;
+                    lock.state = .exiting;
+                },
+                @boolToInt(false) => {},
+                else => {
+                    fatal("unexpected response recieved from child authentication process: {d}", .{byte});
+                },
+            }
+        } else if (lock.pollfds[poll_auth].revents & os.POLL.HUP != 0) {
+            fatal("child authentication process exited unexpectedly", .{});
+        }
     }
 
-    // A roundtrip isn't strictly necessary, but we do need to call wl_display_flush() and
-    // handle the case where it could not flush all requests. The simplest way to do this
-    // using libwayland's API is wl_display_roundtrip() and the slight inefficiency isn't
-    // relevant here.
-    _ = display.roundtrip() catch |e| fatal("Final roundtrip failed: {s}", .{@errorName(e)});
+    lock.flush_wayland_requests();
+}
+
+fn flush_wayland_requests(lock: *Lock) void {
+    while (true) {
+        const errno = os.errno(lock.display.flush());
+        switch (errno) {
+            .SUCCESS => return,
+            // libwayland uses this error to indicate that the wayland server
+            // closed its side of the wayland socket. We want to continue to
+            // read any buffered messages from the server though as there is
+            // likely a protocol error message we'd libwayland to log.
+            .PIPE => return,
+            .AGAIN => {
+                // The socket buffer is full, so wait for it to become writable again.
+                var wayland_out = [_]os.pollfd{.{
+                    .fd = lock.display.getFd(),
+                    .events = os.POLL.OUT,
+                    .revents = 0,
+                }};
+                _ = os.poll(&wayland_out, -1) catch |err| {
+                    fatal("poll() failed: {s}", .{@errorName(err)});
+                };
+                // No need to check for POLLHUP/POLLERR here, just fall
+                // through to the next flush() to handle them in one place.
+            },
+            else => {
+                fatal("failed to flush wayland requests: E{s}", .{@tagName(errno)});
+            },
+        }
+    }
 }
 
 /// Clean up resources just so we can better use tooling such as valgrind to check for leaks.
@@ -129,6 +205,8 @@ fn deinit(lock: *Lock) void {
 
     while (lock.seats.first) |node| node.data.destroy();
     while (lock.outputs.first) |node| node.data.destroy();
+
+    lock.display.disconnect();
 
     lock.xkb_context.unref();
 
@@ -242,82 +320,21 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
 pub fn submit_password(lock: *Lock) void {
     assert(lock.state == .locked);
 
-    log.info("starting PAM authentication", .{});
-
-    const auth_result = lock.pamh.authenticate(0);
-    lock.clear_password();
-
-    if (auth_result == .success) {
-        log.info("PAM authentication succeeded", .{});
-
-        // We don't need to prevent unlocking if this fails. Failure just
-        // means that some extra things like Kerberos might not work without
-        // user intervention.
-        const setcred_result = lock.pamh.setcred(pam.flags.reinitialize_cred);
-        if (setcred_result != .success) {
-            log.err("PAM failed to reinitialize credentials: {s}", .{
-                setcred_result.description(),
-            });
-        }
-
-        const end_result = lock.pamh.end(setcred_result);
-        if (end_result != .success) {
-            log.err("PAM deinitialization failed: {s}", .{end_result});
-        }
-
-        lock.session_lock.?.unlockAndDestroy();
-        lock.session_lock = null;
-
-        lock.state = .exiting;
-    } else {
-        log.err("PAM authentication failed: {s}", .{auth_result.description()});
-
-        if (auth_result == .abort) {
-            const end_result = lock.pamh.end(auth_result);
-            if (end_result != .success) {
-                log.err("PAM deinitialization failed: {s}", .{end_result});
-            }
-            os.exit(1);
-        }
-    }
+    lock.send_password_to_auth() catch |err| {
+        fatal("failed to send password to child authentication process: {s}", .{@errorName(err)});
+    };
 }
 
-fn converse(
-    num_msg: c_int,
-    msg: [*]*const pam.Message,
-    resp: *[*]pam.Response,
-    appdata_ptr: ?*anyopaque,
-) callconv(.C) pam.Result {
-    const ally = std.heap.raw_c_allocator;
-    const lock = @ptrCast(*Lock, @alignCast(@alignOf(Lock), appdata_ptr.?));
-
-    const count = @intCast(usize, num_msg);
-    const responses = ally.alloc(pam.Response, count) catch {
-        return .buf_err;
-    };
-
-    for (msg[0..count]) |message, i| {
-        switch (message.msg_style) {
-            .prompt_echo_off => {
-                const password = ally.dupeZ(u8, lock.password.slice()) catch {
-                    return .buf_err;
-                };
-                responses[i] = .{
-                    .resp = password,
-                };
-            },
-            .prompt_echo_on, .error_msg, .text_info => {},
-        }
-    }
-
-    resp.* = responses.ptr;
-
-    return .success;
+fn send_password_to_auth(lock: *Lock) !void {
+    defer lock.clear_password();
+    const writer = lock.auth_connection.writer();
+    try writer.writeIntNative(u32, @intCast(u32, lock.password.len));
+    try writer.writeAll(lock.password.slice());
 }
 
 pub fn clear_password(lock: *Lock) void {
-    std.crypto.utils.secureZero(u8, lock.password.slice());
-    lock.password.resize(0) catch unreachable;
+    std.crypto.utils.secureZero(u8, &lock.password.buffer);
+    lock.password.len = 0;
 }
 
 fn fatal(comptime format: []const u8, args: anytype) noreturn {
@@ -332,19 +349,3 @@ fn fatal_oom() noreturn {
 fn fatal_not_advertised(comptime Global: type) noreturn {
     fatal("{s} not advertised", .{Global.getInterface().name});
 }
-
-// TODO: upstream these to the zig standard library
-pub const passwd = extern struct {
-    pw_name: [*:0]const u8,
-    pw_passwd: [*:0]const u8,
-    pw_uid: os.uid_t,
-    pw_gid: os.gid_t,
-    pw_change: os.time_t,
-    pw_class: [*:0]const u8,
-    pw_gecos: [*:0]const u8,
-    pw_dir: [*:0]const u8,
-    pw_shell: [*:0]const u8,
-    pw_expire: os.time_t,
-};
-
-pub extern fn getpwuid(uid: os.uid_t) ?*passwd;
