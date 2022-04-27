@@ -115,17 +115,7 @@ pub fn run() void {
     }
 
     while (lock.state != .exiting) {
-        while (!lock.display.prepareRead()) {
-            const errno = os.errno(lock.display.dispatchPending());
-            switch (errno) {
-                .SUCCESS => {},
-                else => {
-                    fatal("failed to dispatch pending wayland events: E{s}", .{@tagName(errno)});
-                },
-            }
-        }
-
-        lock.flush_wayland_requests();
+        lock.flush_wayland_and_prepare_read();
 
         _ = os.poll(&lock.pollfds, -1) catch |err| {
             fatal("poll() failed: {s}", .{@errorName(err)});
@@ -163,19 +153,38 @@ pub fn run() void {
         }
     }
 
-    lock.flush_wayland_requests();
+    lock.flush_wayland_and_prepare_read();
 }
 
-fn flush_wayland_requests(lock: *Lock) void {
+/// This function does the following:
+///  1. Dispatch buffered wayland events to their listener callbacks.
+///  2. Prepare the wayland connection for reading.
+///  3. Send all buffered wayland requests to the server.
+/// After this function has been called, either wl.Display.readEvents() or
+/// wl.Display.cancelRead() read must be called.
+fn flush_wayland_and_prepare_read(lock: *Lock) void {
+    while (!lock.display.prepareRead()) {
+        const errno = os.errno(lock.display.dispatchPending());
+        switch (errno) {
+            .SUCCESS => {},
+            else => {
+                fatal("failed to dispatch pending wayland events: E{s}", .{@tagName(errno)});
+            },
+        }
+    }
+
     while (true) {
         const errno = os.errno(lock.display.flush());
         switch (errno) {
             .SUCCESS => return,
-            // libwayland uses this error to indicate that the wayland server
-            // closed its side of the wayland socket. We want to continue to
-            // read any buffered messages from the server though as there is
-            // likely a protocol error message we'd libwayland to log.
-            .PIPE => return,
+            .PIPE => {
+                // libwayland uses this error to indicate that the wayland server
+                // closed its side of the wayland socket. We want to continue to
+                // read any buffered messages from the server though as there is
+                // likely a protocol error message we'd like libwayland to log.
+                _ = lock.display.readEvents();
+                fatal("connection to wayland server unexpectedly terminated", .{});
+            },
             .AGAIN => {
                 // The socket buffer is full, so wait for it to become writable again.
                 var wayland_out = [_]os.pollfd{.{
