@@ -39,6 +39,7 @@ compositor: ?*wl.Compositor = null,
 session_lock_manager: ?*ext.SessionLockManagerV1 = null,
 session_lock: ?*ext.SessionLockV1 = null,
 
+// TODO write a nicer, probably intrusive, linked list
 seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
 
@@ -101,16 +102,16 @@ pub fn run() void {
     lock.state = .locking;
 
     {
-        var initial_outputs = lock.outputs;
-        lock.outputs = .{};
-        while (initial_outputs.popFirst()) |node| {
-            node.data.init(&lock, node.data.name, node.data.wl_output) catch {
+        var it = lock.outputs.first;
+        while (it) |node| {
+            // Do this up front in case the node gets removed.
+            it = node.next;
+            node.data.create_surface() catch {
                 log.err("out of memory", .{});
-                node.data.wl_output.release();
-                gpa.destroy(node);
+                // Removes the node from the list.
+                node.data.destroy();
                 continue;
             };
-            lock.outputs.prepend(node);
         }
     }
 
@@ -255,20 +256,19 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                 errdefer wl_output.release();
 
                 const node = try gpa.create(std.SinglyLinkedList(Output).Node);
-                errdefer gpa.destroy(node);
+                errdefer node.data.destroy();
+
+                node.data = .{
+                    .lock = lock,
+                    .name = ev.name,
+                    .wl_output = wl_output,
+                };
+                lock.outputs.prepend(node);
 
                 switch (lock.state) {
-                    .initializing => node.data = .{
-                        .lock = undefined,
-                        .name = ev.name,
-                        .wl_output = wl_output,
-                        .surface = undefined,
-                        .lock_surface = undefined,
-                    },
-                    .locking, .locked, .exiting => try node.data.init(lock, ev.name, wl_output),
+                    .initializing, .exiting => {},
+                    .locking, .locked => try node.data.create_surface(),
                 }
-
-                lock.outputs.prepend(node);
             } else if (std.cstr.cmp(ev.interface, wl.Seat.getInterface().name) == 0) {
                 // Version 5 required for wl_seat.release
                 if (ev.version < 5) {
@@ -287,14 +287,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
             var it = lock.outputs.first;
             while (it) |node| : (it = node.next) {
                 if (node.data.name == ev.name) {
-                    switch (lock.state) {
-                        .initializing => {
-                            lock.outputs.remove(node);
-                            node.data.wl_output.release();
-                            gpa.destroy(node);
-                        },
-                        .locking, .locked, .exiting => node.data.destroy(),
-                    }
+                    node.data.destroy();
                     break;
                 }
             }

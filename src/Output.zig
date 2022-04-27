@@ -15,32 +15,24 @@ const Lock = @import("Lock.zig");
 const gpa = std.heap.c_allocator;
 
 lock: *Lock,
-// TODO refactor this away
 name: u32,
 wl_output: *wl.Output,
-surface: *wl.Surface,
-lock_surface: *ext.SessionLockSurfaceV1,
+surface: ?*wl.Surface = null,
+lock_surface: ?*ext.SessionLockSurfaceV1 = null,
 
-pub fn init(output: *Output, lock: *Lock, name: u32, wl_output: *wl.Output) !void {
-    const surface = try lock.compositor.?.createSurface();
-    errdefer surface.destroy();
+pub fn create_surface(output: *Output) !void {
+    const surface = try output.lock.compositor.?.createSurface();
+    output.surface = surface;
 
-    const lock_surface = try lock.session_lock.?.getLockSurface(surface, wl_output);
+    const lock_surface = try output.lock.session_lock.?.getLockSurface(surface, output.wl_output);
     lock_surface.setListener(*Output, lock_surface_listener, output);
-
-    output.* = .{
-        .lock = lock,
-        .name = name,
-        .wl_output = wl_output,
-        .surface = surface,
-        .lock_surface = lock_surface,
-    };
+    output.lock_surface = lock_surface;
 }
 
 pub fn destroy(output: *Output) void {
-    output.wl_output.destroy();
-    output.surface.destroy();
-    output.lock_surface.destroy();
+    output.wl_output.release();
+    if (output.surface) |surface| surface.destroy();
+    if (output.lock_surface) |lock_surface| lock_surface.destroy();
 
     const node = @fieldParentPtr(std.SinglyLinkedList(Output).Node, "data", output);
     output.lock.outputs.remove(node);
@@ -61,10 +53,10 @@ fn lock_surface_listener(
             };
             defer buffer.destroy();
 
-            output.lock_surface.ackConfigure(ev.serial);
-            output.surface.attach(buffer, 0, 0);
-            output.surface.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
-            output.surface.commit();
+            output.lock_surface.?.ackConfigure(ev.serial);
+            output.surface.?.attach(buffer, 0, 0);
+            output.surface.?.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
+            output.surface.?.commit();
         },
     }
 }
