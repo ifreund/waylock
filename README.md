@@ -6,9 +6,9 @@ more robust than previous client-side Wayland screen locking approaches. In
 particular, the screenlocker crashing does not cause the session to be
 unlocked.
 
-In addition, waylock has been entirely rewritten since version 0.3 for security
-and simplicity. It now benefits from everything I've learned about working
-with Wayland and programming in general over the past few years working on
+In addition, waylock has been entirely rewritten since version 0.3 for
+security and simplicity. It now benefits from everything I've learned
+about Wayland and programming in general over the past few years working on
 [river](https://github.com/riverwm/river).
 
 ## Building
@@ -32,8 +32,13 @@ installed:
 Then run, for example:
 
 ```
-zig build -Drelease-safe --prefix ~/.local install
+zig build -Drelease-safe --prefix /usr install
 ```
+
+Note that PAM will only use configuration files in the system directory,
+likely `/etc/pam.d` by default. Therefore care must be taken if
+installing to a prefix other than `/usr` to ensure the configuration file
+[pam.d/waylock](pam.d/waylock) is found by PAM.
 
 ## Usage
 
