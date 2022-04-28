@@ -146,6 +146,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             const xkb_state = seat.xkb_state orelse return;
 
             const lock = seat.lock;
+            lock.set_color(.input);
 
             // The wayland protocol gives us an input event code. To convert this to an xkb
             // keycode we must add 8.
@@ -155,8 +156,13 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             if (keysym == .NoSymbol) return;
 
             switch (@enumToInt(keysym)) {
-                xkb.Keysym.Return => lock.submit_password(),
-                xkb.Keysym.Escape => lock.clear_password(),
+                xkb.Keysym.Return => {
+                    lock.submit_password();
+                },
+                xkb.Keysym.Escape => {
+                    lock.clear_password();
+                    lock.set_color(.init);
+                },
                 else => {
                     const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
                     lock.password.resize(lock.password.len + used) catch {

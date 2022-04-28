@@ -18,6 +18,20 @@ const Seat = @import("Seat.zig");
 
 const gpa = std.heap.c_allocator;
 
+pub const Color = enum {
+    init,
+    input,
+    fail,
+
+    pub fn argb(color: Color) u32 {
+        return switch (color) {
+            .init => 0xff002b36,
+            .input => 0xff6c71c4,
+            .fail => 0xffdc322f,
+        };
+    }
+};
+
 state: enum {
     /// The session lock object has not yet been created.
     initializing,
@@ -30,6 +44,8 @@ state: enum {
     /// has unlocked the session.
     exiting,
 } = .initializing,
+
+color: Color = .init,
 
 pollfds: [2]os.pollfd,
 
@@ -144,7 +160,9 @@ pub fn run() void {
                     lock.session_lock = null;
                     lock.state = .exiting;
                 },
-                @boolToInt(false) => {},
+                @boolToInt(false) => {
+                    lock.set_color(.fail);
+                },
                 else => {
                     fatal("unexpected response recieved from child authentication process: {d}", .{byte});
                 },
@@ -337,6 +355,19 @@ fn send_password_to_auth(lock: *Lock) !void {
 pub fn clear_password(lock: *Lock) void {
     std.crypto.utils.secureZero(u8, &lock.password.buffer);
     lock.password.len = 0;
+}
+
+pub fn set_color(lock: *Lock, color: Color) void {
+    if (lock.color == color) return;
+
+    lock.color = color;
+
+    var it = lock.outputs.first;
+    while (it) |node| : (it = node.next) {
+        node.data.attach_buffer(lock.color.argb()) catch |err| {
+            log.err("failed to create buffer: {s}", .{@errorName(err)});
+        };
+    }
 }
 
 fn fatal(comptime format: []const u8, args: anytype) noreturn {

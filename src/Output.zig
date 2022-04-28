@@ -20,6 +20,10 @@ wl_output: *wl.Output,
 surface: ?*wl.Surface = null,
 lock_surface: ?*ext.SessionLockSurfaceV1 = null,
 
+// These fields are not used before the first configure is received.
+width: u32 = undefined,
+height: u32 = undefined,
+
 pub fn create_surface(output: *Output) !void {
     const surface = try output.lock.compositor.?.createSurface();
     output.surface = surface;
@@ -46,19 +50,26 @@ fn lock_surface_listener(
 ) void {
     switch (event) {
         .configure => |ev| {
-            const buffer = output.create_buffer(ev.width, ev.height, 0xff002b36) catch |err| {
+            output.width = ev.width;
+            output.height = ev.height;
+            output.lock_surface.?.ackConfigure(ev.serial);
+            output.attach_buffer(output.lock.color.argb()) catch |err| {
                 log.err("failed to create buffer: {s}", .{@errorName(err)});
                 output.destroy();
                 return;
             };
-            defer buffer.destroy();
-
-            output.lock_surface.?.ackConfigure(ev.serial);
-            output.surface.?.attach(buffer, 0, 0);
-            output.surface.?.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
-            output.surface.?.commit();
         },
     }
+}
+
+pub fn attach_buffer(output: *Output, argb: u32) !void {
+    if (output.lock_surface == null) return;
+
+    const buffer = try output.create_buffer(output.width, output.height, argb);
+    defer buffer.destroy();
+    output.surface.?.attach(buffer, 0, 0);
+    output.surface.?.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
+    output.surface.?.commit();
 }
 
 // TODO manage buffers more efficiently with a nice abstraction that allows for re-use.
