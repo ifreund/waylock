@@ -27,6 +27,7 @@ installed:
 - wayland
 - wayland-protocols
 - xkbcommon
+- pam
 - pkg-config
 
 Then run, for example:
