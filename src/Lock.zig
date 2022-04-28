@@ -94,7 +94,7 @@ pub fn run() void {
     registry.setListener(*Lock, registry_listener, &lock);
 
     {
-        const errno = os.errno(lock.display.roundtrip());
+        const errno = lock.display.roundtrip();
         switch (errno) {
             .SUCCESS => {},
             else => {
@@ -139,7 +139,7 @@ pub fn run() void {
         };
 
         if (lock.pollfds[poll_wayland].revents & os.POLL.IN != 0) {
-            const errno = os.errno(lock.display.readEvents());
+            const errno = lock.display.readEvents();
             switch (errno) {
                 .SUCCESS => {},
                 else => {
@@ -183,7 +183,7 @@ pub fn run() void {
 /// wl.Display.cancelRead() read must be called.
 fn flush_wayland_and_prepare_read(lock: *Lock) void {
     while (!lock.display.prepareRead()) {
-        const errno = os.errno(lock.display.dispatchPending());
+        const errno = lock.display.dispatchPending();
         switch (errno) {
             .SUCCESS => {},
             else => {
@@ -193,7 +193,7 @@ fn flush_wayland_and_prepare_read(lock: *Lock) void {
     }
 
     while (true) {
-        const errno = os.errno(lock.display.flush());
+        const errno = lock.display.flush();
         switch (errno) {
             .SUCCESS => return,
             .PIPE => {
