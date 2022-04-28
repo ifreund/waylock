@@ -2,9 +2,16 @@ const std = @import("std");
 const Builder = std.build.Builder;
 const ScanProtocolsStep = @import("deps/zig-wayland/build.zig").ScanProtocolsStep;
 
-pub fn build(b: *Builder) void {
+pub fn build(b: *Builder) !void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
+
+    const install_prefix = try std.fs.path.resolve(b.allocator, &[_][]const u8{b.install_prefix});
+    if (std.mem.eql(u8, install_prefix, "/usr")) {
+        b.installFile("pam.d/waylock", "../etc/pam.d/waylock");
+    } else {
+        b.installFile("pam.d/waylock", "etc/pam.d/waylock");
+    }
 
     const scanner = ScanProtocolsStep.create(b);
     scanner.addSystemProtocol("staging/ext-session-lock/ext-session-lock-v1.xml");
@@ -24,7 +31,6 @@ pub fn build(b: *Builder) void {
     waylock.linkSystemLibrary("xkbcommon");
     waylock.linkSystemLibrary("pam");
 
-    // TODO: remove when https://github.com/ziglang/zig/issues/131 is implemented
     scanner.addCSource(waylock);
 
     waylock.install();

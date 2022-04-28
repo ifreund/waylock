@@ -63,7 +63,7 @@ pub fn run(conn: Connection) noreturn {
             os.exit(1);
         };
 
-        const result = pam.start("system-auth", pw.pw_name, &conv, &pamh);
+        const result = pam.start("waylock", pw.pw_name, &conv, &pamh);
         if (result != .success) {
             log.err("failed to initialize PAM: {s}", .{result.description()});
             os.exit(1);
