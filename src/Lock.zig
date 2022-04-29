@@ -3,10 +3,12 @@ const Lock = @This();
 const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log;
+const mem = std.mem;
 const os = std.os;
 
 const wayland = @import("wayland");
 const wl = wayland.client.wl;
+const wp = wayland.client.wp;
 const ext = wayland.client.ext;
 
 const xkb = @import("xkbcommon");
@@ -54,6 +56,8 @@ shm: ?*wl.Shm = null,
 compositor: ?*wl.Compositor = null,
 session_lock_manager: ?*ext.SessionLockManagerV1 = null,
 session_lock: ?*ext.SessionLockV1 = null,
+viewporter: ?*wp.Viewporter = null,
+buffer: [3]?*wl.Buffer = .{ null, null, null },
 
 // TODO write a nicer, probably intrusive, linked list
 seats: std.SinglyLinkedList(Seat) = .{},
@@ -106,6 +110,9 @@ pub fn run() void {
     if (lock.shm == null) fatal_not_advertised(wl.Shm);
     if (lock.compositor == null) fatal_not_advertised(wl.Compositor);
     if (lock.session_lock_manager == null) fatal_not_advertised(ext.SessionLockManagerV1);
+    if (lock.viewporter == null) fatal_not_advertised(wp.Viewporter);
+
+    lock.create_buffers() catch fatal_oom();
 
     lock.session_lock = lock.session_lock_manager.?.lock() catch fatal_oom();
     lock.session_lock.?.setListener(*Lock, session_lock_listener, &lock);
@@ -226,8 +233,12 @@ fn flush_wayland_and_prepare_read(lock: *Lock) void {
 
 /// Clean up resources just so we can better use tooling such as valgrind to check for leaks.
 fn deinit(lock: *Lock) void {
+    for (lock.buffer) |buffer| {
+        if (buffer) |buf| buf.destroy();
+    }
     if (lock.shm) |shm| shm.destroy();
     if (lock.compositor) |compositor| compositor.destroy();
+    if (lock.viewporter) |viewporter| viewporter.destroy();
     assert(lock.session_lock_manager == null);
     assert(lock.session_lock == null);
 
@@ -299,6 +310,8 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                 errdefer gpa.destroy(node);
 
                 node.data.init(lock, wl_seat);
+            } else if (std.cstr.cmp(ev.interface, wp.Viewporter.getInterface().name) == 0) {
+                lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
             }
         },
         .global_remove => |ev| {
@@ -364,9 +377,7 @@ pub fn set_color(lock: *Lock, color: Color) void {
 
     var it = lock.outputs.first;
     while (it) |node| : (it = node.next) {
-        node.data.attach_buffer(lock.color.argb()) catch |err| {
-            log.err("failed to create buffer: {s}", .{@errorName(err)});
-        };
+        node.data.attach_buffer(lock.buffer[@enumToInt(lock.color)].?);
     }
 }
 
@@ -381,4 +392,32 @@ fn fatal_oom() noreturn {
 
 fn fatal_not_advertised(comptime Global: type) noreturn {
     fatal("{s} not advertised", .{Global.getInterface().name});
+}
+
+fn create_buffers(lock: *Lock) !void {
+    // Create a three single pixel buffers, one for each color.
+    // TODO go back to a single three pixel buffer once wlroots viewporter rounding issues are fixed
+    const bytes_per_pixel: u4 = 4; // argb8888
+    const backing_height = 1;
+    const backing_width = 3;
+    const stride = backing_width * bytes_per_pixel;
+    const size = stride * backing_height;
+
+    // TODO support non-linux systems
+    const fd = try os.memfd_create("waylock-shm-buffer-pool", os.linux.MFD_CLOEXEC);
+    defer os.close(fd);
+
+    try os.ftruncate(fd, size);
+    const data = try os.mmap(null, size, os.PROT.READ | os.PROT.WRITE, os.MAP.SHARED, fd, 0);
+
+    const pool = try lock.shm.?.createPool(fd, @intCast(i32, size));
+    defer pool.destroy();
+
+    const slice = mem.bytesAsSlice(u32, data);
+    inline for ([_]Color{ .init, .input, .fail }) |color| {
+        const i = @enumToInt(color);
+        assert(i < lock.buffer.len);
+        slice[i] = Color.argb(color);
+        lock.buffer[i] = try pool.createBuffer(i * bytes_per_pixel, 1, 1, stride, wl.Shm.Format.argb8888);
+    }
 }

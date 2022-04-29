@@ -15,6 +15,7 @@ pub fn build(b: *Builder) !void {
 
     const scanner = ScanProtocolsStep.create(b);
     scanner.addSystemProtocol("staging/ext-session-lock/ext-session-lock-v1.xml");
+    scanner.addSystemProtocol("stable/viewporter/viewporter.xml");
 
     const waylock = b.addExecutable("waylock", "src/main.zig");
     waylock.setTarget(target);
