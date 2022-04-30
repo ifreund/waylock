@@ -158,19 +158,33 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             switch (@enumToInt(keysym)) {
                 xkb.Keysym.Return => {
                     lock.submit_password();
+                    return;
                 },
                 xkb.Keysym.Escape => {
                     lock.clear_password();
                     lock.set_color(.init);
+                    return;
                 },
-                else => {
-                    const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
-                    lock.password.resize(lock.password.len + used) catch {
-                        log.err("Password exceeds {} byte limit.", .{lock.password.capacity()});
+                xkb.Keysym.u => {
+                    const Component = xkb.State.Component;
+                    const ctrl_active = xkb_state.modNameIsActive(
+                        xkb.names.mod.ctrl,
+                        @intToEnum(Component, Component.mods_depressed | Component.mods_latched),
+                    ) == 1;
+
+                    if (ctrl_active) {
+                        lock.clear_password();
+                        lock.set_color(.init);
                         return;
-                    };
+                    }
                 },
+                else => {},
             }
+            // If key was not handled, write to password buffer
+            const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
+            lock.password.resize(lock.password.len + used) catch {
+                log.err("Password exceeds {} byte limit.", .{lock.password.capacity()});
+            };
         },
         .repeat_info => {},
     }
