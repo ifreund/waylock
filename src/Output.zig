@@ -12,7 +12,6 @@ const wp = wayland.client.wp;
 const ext = wayland.client.ext;
 
 const Lock = @import("Lock.zig");
-const Color = Lock.Color;
 
 const gpa = std.heap.c_allocator;
 
@@ -24,8 +23,8 @@ viewport: ?*wp.Viewport = null,
 lock_surface: ?*ext.SessionLockSurfaceV1 = null,
 
 // These fields are not used before the first configure is received.
-width: u32 = undefined,
-height: u32 = undefined,
+width: u31 = undefined,
+height: u31 = undefined,
 
 pub fn create_surface(output: *Output) !void {
     const surface = try output.lock.compositor.?.createSurface();
@@ -57,10 +56,10 @@ fn lock_surface_listener(
     const lock = output.lock;
     switch (event) {
         .configure => |ev| {
-            output.width = ev.width;
-            output.height = ev.height;
+            output.width = @truncate(u31, ev.width);
+            output.height = @truncate(u31, ev.height);
             output.lock_surface.?.ackConfigure(ev.serial);
-            output.attach_buffer(lock.buffer[@enumToInt(lock.color)].?);
+            output.attach_buffer(lock.buffers[@enumToInt(lock.color)]);
         },
     }
 }
@@ -68,9 +67,6 @@ fn lock_surface_listener(
 pub fn attach_buffer(output: *Output, buffer: *wl.Buffer) void {
     output.surface.?.attach(buffer, 0, 0);
     output.surface.?.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
-    output.viewport.?.setDestination(
-        @intCast(i32, output.width),
-        @intCast(i32, output.height),
-    );
+    output.viewport.?.setDestination(output.width, output.height);
     output.surface.?.commit();
 }

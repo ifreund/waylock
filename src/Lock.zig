@@ -57,7 +57,7 @@ compositor: ?*wl.Compositor = null,
 session_lock_manager: ?*ext.SessionLockManagerV1 = null,
 session_lock: ?*ext.SessionLockV1 = null,
 viewporter: ?*wp.Viewporter = null,
-buffer: [3]?*wl.Buffer = .{ null, null, null },
+buffers: [3]*wl.Buffer,
 
 // TODO write a nicer, probably intrusive, linked list
 seats: std.SinglyLinkedList(Seat) = .{},
@@ -77,6 +77,7 @@ pub fn run() void {
         .auth_connection = auth.fork_child() catch |err| {
             fatal("failed to fork child authentication process: {s}", .{@errorName(err)});
         },
+        .buffers = undefined,
     };
     defer lock.deinit();
 
@@ -112,7 +113,11 @@ pub fn run() void {
     if (lock.session_lock_manager == null) fatal_not_advertised(ext.SessionLockManagerV1);
     if (lock.viewporter == null) fatal_not_advertised(wp.Viewporter);
 
-    lock.create_buffers() catch fatal_oom();
+    lock.buffers = create_buffers(lock.shm.?) catch |err| {
+        fatal("failed to create buffers: {s}", .{@errorName(err)});
+    };
+    lock.shm.?.destroy();
+    lock.shm = null;
 
     lock.session_lock = lock.session_lock_manager.?.lock() catch fatal_oom();
     lock.session_lock.?.setListener(*Lock, session_lock_listener, &lock);
@@ -233,12 +238,11 @@ fn flush_wayland_and_prepare_read(lock: *Lock) void {
 
 /// Clean up resources just so we can better use tooling such as valgrind to check for leaks.
 fn deinit(lock: *Lock) void {
-    for (lock.buffer) |buffer| {
-        if (buffer) |buf| buf.destroy();
-    }
-    if (lock.shm) |shm| shm.destroy();
     if (lock.compositor) |compositor| compositor.destroy();
     if (lock.viewporter) |viewporter| viewporter.destroy();
+    for (lock.buffers) |buffer| buffer.destroy();
+
+    assert(lock.shm == null);
     assert(lock.session_lock_manager == null);
     assert(lock.session_lock == null);
 
@@ -377,7 +381,7 @@ pub fn set_color(lock: *Lock, color: Color) void {
 
     var it = lock.outputs.first;
     while (it) |node| : (it = node.next) {
-        node.data.attach_buffer(lock.buffer[@enumToInt(lock.color)].?);
+        node.data.attach_buffer(lock.buffers[@enumToInt(lock.color)]);
     }
 }
 
@@ -394,30 +398,30 @@ fn fatal_not_advertised(comptime Global: type) noreturn {
     fatal("{s} not advertised", .{Global.getInterface().name});
 }
 
-fn create_buffers(lock: *Lock) !void {
-    // Create a three single pixel buffers, one for each color.
-    // TODO go back to a single three pixel buffer once wlroots viewporter rounding issues are fixed
-    const bytes_per_pixel: u4 = 4; // argb8888
-    const backing_height = 1;
-    const backing_width = 3;
-    const stride = backing_width * bytes_per_pixel;
-    const size = stride * backing_height;
+/// Create 3 1x1 buffers backed by the same shared memory
+fn create_buffers(shm: *wl.Shm) ![3]*wl.Buffer {
+    const shm_size = 3 * @sizeOf(u32);
 
     // TODO support non-linux systems
     const fd = try os.memfd_create("waylock-shm-buffer-pool", os.linux.MFD_CLOEXEC);
     defer os.close(fd);
 
-    try os.ftruncate(fd, size);
-    const data = try os.mmap(null, size, os.PROT.READ | os.PROT.WRITE, os.MAP.SHARED, fd, 0);
+    try os.ftruncate(fd, shm_size);
 
-    const pool = try lock.shm.?.createPool(fd, @intCast(i32, size));
+    const pool = try shm.createPool(fd, shm_size);
     defer pool.destroy();
 
-    const slice = mem.bytesAsSlice(u32, data);
-    inline for ([_]Color{ .init, .input, .fail }) |color| {
-        const i = @enumToInt(color);
-        assert(i < lock.buffer.len);
-        slice[i] = Color.argb(color);
-        lock.buffer[i] = try pool.createBuffer(i * bytes_per_pixel, 1, 1, stride, wl.Shm.Format.argb8888);
+    const backing_memory = mem.bytesAsSlice(
+        u32,
+        try os.mmap(null, shm_size, os.PROT.READ | os.PROT.WRITE, os.MAP.SHARED, fd, 0),
+    );
+
+    var buffers: [3]*wl.Buffer = undefined;
+    for ([_]Color{ .init, .input, .fail }) |color| {
+        const i: u31 = @enumToInt(color);
+        backing_memory[i] = Color.argb(color);
+        buffers[i] = try pool.createBuffer(i * @sizeOf(u32), 1, 1, @sizeOf(u32), .argb8888);
     }
+
+    return buffers;
 }
