@@ -96,6 +96,7 @@ pub fn run() void {
     };
 
     const registry = lock.display.getRegistry() catch fatal_oom();
+    defer registry.destroy();
     registry.setListener(*Lock, registry_listener, &lock);
 
     {
@@ -314,6 +315,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                 errdefer gpa.destroy(node);
 
                 node.data.init(lock, wl_seat);
+                lock.seats.prepend(node);
             } else if (std.cstr.cmp(ev.interface, wp.Viewporter.getInterface().name) == 0) {
                 lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
             }
