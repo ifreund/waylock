@@ -1,5 +1,5 @@
 const std = @import("std");
-const Builder = std.build.Builder;
+const zbs = std.build;
 const fs = std.fs;
 const mem = std.mem;
 
@@ -11,9 +11,26 @@ const ScanProtocolsStep = @import("deps/zig-wayland/build.zig").ScanProtocolsSte
 /// Directly after the tagged commit, the version should be bumped and the "-dev" suffix added.
 const version = "0.4.0-dev";
 
-pub fn build(b: *Builder) !void {
+pub fn build(b: *zbs.Builder) !void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
+
+    const man_pages = b.option(
+        bool,
+        "man-pages",
+        "Set to true to build man pages. Requires scdoc. Defaults to true if scdoc is found.",
+    ) orelse scdoc_found: {
+        _ = b.findProgram(&[_][]const u8{"scdoc"}, &[_][]const u8{}) catch |err| switch (err) {
+            error.FileNotFound => break :scdoc_found false,
+            else => return err,
+        };
+        break :scdoc_found true;
+    };
+
+    if (man_pages) {
+        const scdoc_step = try ScdocStep.create(b);
+        try scdoc_step.install();
+    }
 
     const install_prefix = try std.fs.path.resolve(b.allocator, &[_][]const u8{b.install_prefix});
     if (std.mem.eql(u8, install_prefix, "/usr")) {
@@ -67,3 +84,29 @@ pub fn build(b: *Builder) !void {
 
     waylock.install();
 }
+
+const ScdocStep = struct {
+    builder: *zbs.Builder,
+    step: zbs.Step,
+
+    fn create(builder: *zbs.Builder) !*ScdocStep {
+        const self = try builder.allocator.create(ScdocStep);
+        self.* = .{
+            .builder = builder,
+            .step = zbs.Step.init(.custom, "Generate man pages", builder.allocator, make),
+        };
+        return self;
+    }
+
+    fn make(step: *zbs.Step) !void {
+        const self = @fieldParentPtr(ScdocStep, "step", step);
+        _ = try self.builder.exec(
+            &[_][]const u8{ "sh", "-c", "scdoc < doc/waylock.1.scd > doc/waylock.1" },
+        );
+    }
+
+    fn install(self: *ScdocStep) !void {
+        self.builder.getInstallStep().dependOn(&self.step);
+        self.builder.installFile("doc/waylock.1", "share/man/man1/waylock.1");
+    }
+};

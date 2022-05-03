@@ -29,6 +29,7 @@ installed:
 - xkbcommon
 - pam
 - pkg-config
+- scdoc (optional, but required for man page generation)
 
 Then run, for example:
 
@@ -43,7 +44,8 @@ installing to a prefix other than `/usr` to ensure the configuration file
 
 ## Usage
 
-See `waylock -h` for an overview of the command line options.
+See the `waylock(1)` man page or the output of `waylock -h` for an overview
+of the command line options.
 
 Run the waylock executable to lock the session. All monitors will be
 blanked with the `-init-color`. Typing causes the color to change to the
