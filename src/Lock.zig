@@ -24,12 +24,18 @@ pub const Color = enum {
     init,
     input,
     fail,
+};
 
-    pub fn argb(color: Color) u32 {
+pub const Options = struct {
+    init_color: u32 = 0xff002b36,
+    input_color: u32 = 0xff6c71c4,
+    fail_color: u32 = 0xffdc322f,
+
+    fn argb(options: Options, color: Color) u32 {
         return switch (color) {
-            .init => 0xff002b36,
-            .input => 0xff6c71c4,
-            .fail => 0xffdc322f,
+            .init => options.init_color,
+            .input => options.input_color,
+            .fail => options.fail_color,
         };
     }
 };
@@ -67,7 +73,7 @@ xkb_context: *xkb.Context,
 password: std.BoundedArray(u8, auth.password_size_max) = .{ .buffer = undefined },
 auth_connection: auth.Connection,
 
-pub fn run() void {
+pub fn run(options: Options) void {
     var lock: Lock = .{
         .pollfds = undefined,
         .display = wl.Display.connect(null) catch |err| {
@@ -114,7 +120,7 @@ pub fn run() void {
     if (lock.session_lock_manager == null) fatal_not_advertised(ext.SessionLockManagerV1);
     if (lock.viewporter == null) fatal_not_advertised(wp.Viewporter);
 
-    lock.buffers = create_buffers(lock.shm.?) catch |err| {
+    lock.buffers = create_buffers(lock.shm.?, options) catch |err| {
         fatal("failed to create buffers: {s}", .{@errorName(err)});
     };
     lock.shm.?.destroy();
@@ -401,7 +407,7 @@ fn fatal_not_advertised(comptime Global: type) noreturn {
 }
 
 /// Create 3 1x1 buffers backed by the same shared memory
-fn create_buffers(shm: *wl.Shm) ![3]*wl.Buffer {
+fn create_buffers(shm: *wl.Shm, options: Options) ![3]*wl.Buffer {
     const shm_size = 3 * @sizeOf(u32);
 
     // TODO support non-linux systems
@@ -421,7 +427,7 @@ fn create_buffers(shm: *wl.Shm) ![3]*wl.Buffer {
     var buffers: [3]*wl.Buffer = undefined;
     for ([_]Color{ .init, .input, .fail }) |color| {
         const i: u31 = @enumToInt(color);
-        backing_memory[i] = Color.argb(color);
+        backing_memory[i] = options.argb(color);
         buffers[i] = try pool.createBuffer(i * @sizeOf(u32), 1, 1, @sizeOf(u32), .argb8888);
     }
 

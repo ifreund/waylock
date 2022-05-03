@@ -13,9 +13,14 @@ const flags = @import("flags.zig");
 const usage =
     \\usage: waylock [options]
     \\
-    \\  -h                 Print this help message and exit.
-    \\  -version           Print the version number and exit.
-    \\  -log-level <level> Set the log level to error, warning, info, or debug.
+    \\  -h                   Print this help message and exit.
+    \\  -version             Print the version number and exit.
+    \\  -log-level <level>   Set the log level to error, warning, info, or debug.
+    \\
+    \\  -init-color <color>  Set the initial color. (default: 0x002b36)
+    \\  -input-color <color> Set the color used after input. (default: 0x6c71c4)
+    \\  -fail-color <color>  Set the color used on authentication failure. (default: 0xdc322f)
+    \\
 ;
 
 pub fn main() void {
@@ -27,6 +32,9 @@ pub fn main() void {
         .{ .name = "-h", .kind = .boolean },
         .{ .name = "-version", .kind = .boolean },
         .{ .name = "-log-level", .kind = .arg },
+        .{ .name = "-init-color", .kind = .arg },
+        .{ .name = "-input-color", .kind = .arg },
+        .{ .name = "-fail-color", .kind = .arg },
     }) catch {
         io.getStdErr().writeAll(usage) catch {};
         os.exit(1);
@@ -56,12 +64,30 @@ pub fn main() void {
             runtime_log_level = .debug;
         } else {
             std.log.err("invalid log level '{s}'", .{level});
-            io.getStdErr().writeAll(usage) catch {};
             os.exit(1);
         }
     }
 
-    Lock.run();
+    var options: Lock.Options = .{};
+    if (result.argFlag("-init-color")) |raw| options.init_color = parse_color(raw);
+    if (result.argFlag("-input-color")) |raw| options.input_color = parse_color(raw);
+    if (result.argFlag("-fail-color")) |raw| options.fail_color = parse_color(raw);
+
+    Lock.run(options);
+}
+
+fn parse_color(raw: []const u8) u32 {
+    if (raw.len != 8) fatal_bad_color(raw);
+    if (!mem.eql(u8, raw[0..2], "0x")) fatal_bad_color(raw);
+
+    const rgb = std.fmt.parseUnsigned(u32, raw[2..], 16) catch fatal_bad_color(raw);
+    const argb = 0xff000000 | rgb;
+    return argb;
+}
+
+fn fatal_bad_color(raw: []const u8) noreturn {
+    std.log.err("invalid color '{s}', expected format '0xRRGGBB'", .{raw});
+    os.exit(1);
 }
 
 /// Tell std.log to leave all log level filtering to us.
