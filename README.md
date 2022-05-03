@@ -2,8 +2,8 @@
 
 Waylock is a small screenlocker for Wayland compositors implementing
 `ext-session-lock-v1`. The `ext-session-lock-v1` protocol is significantly
-more robust than previous client-side Wayland screen locking approaches. In
-particular, the screenlocker crashing does not cause the session to be
+more robust than previous client-side Wayland screen locking approaches.
+Importantly, the screenlocker crashing does not cause the session to be
 unlocked.
 
 In addition, waylock has been entirely rewritten since version 0.3 for
@@ -43,13 +43,15 @@ installing to a prefix other than `/usr` to ensure the configuration file
 
 ## Usage
 
-Run the waylock executable to lock the session. All monitors will be blanked
-with a dark blue color. Typing causes the color to change to purple, to
-clear what you've typed press Esc.
+See `waylock -h` for an overview of the command line options.
 
-To unlock the session, type your password and press Enter. If the password
-is correct, waylock will unlock the session and exit. Otherwise, the screen
-will turn red and you may try again.
+Run the waylock executable to lock the session. All monitors will be
+blanked with the `-init-color`. Typing causes the color to change to the
+`-input-color`, to clear what you've typed press `Esc` or `Ctrl-U`.
+
+To unlock the session, type your password and press `Enter`. If the password
+is correct, waylock will unlock the session and exit. Otherwise, the color
+will change to the `-fail-color` and you may try again.
 
 ## Licensing
 
