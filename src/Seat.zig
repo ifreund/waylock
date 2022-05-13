@@ -81,13 +81,13 @@ fn pointer_listener(wl_pointer: *wl.Pointer, event: wl.Pointer.Event, _: ?*anyop
 
 fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) void {
     switch (event) {
-        // It doesn't matter which surface gains keyboard focus or what keys are
-        // currently pressed.
-        .enter => {},
+        .enter => {
+            // It doesn't matter which surface gains keyboard focus or what keys are
+            // currently pressed. We don't implement key repeat for simiplicity.
+        },
         .leave => {
-            // TODO wayland.xml docs say:
-            // After this event client must assume that all keys, including modifiers,
-            // are lifted and also it must stop key repeating if there's some going on.
+            // There's nothing to do as we don't implement key repeat and
+            // only care about press events, not release.
         },
         .keymap => |ev| {
             defer os.close(ev.fd);
