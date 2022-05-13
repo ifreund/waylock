@@ -1,0 +1,26 @@
+image: alpine/edge
+packages:
+  - libxkbcommon-dev
+  - pkgconf
+  - scdoc
+  - tar
+  - linux-pam-dev
+  - wayland-dev
+  - wayland-protocols
+  - wget
+  - xz
+sources:
+  - https://github.com/ifreund/waylock
+tasks:
+  - install_deps: |
+      wget -nv https://ziglang.org/download/0.9.1/zig-linux-x86_64-0.9.1.tar.xz
+      tar -xvf zig-linux-x86_64-0.9.1.tar.xz 1>/dev/null
+      sudo mv zig-linux-x86_64-0.9.1/zig /usr/bin/
+      sudo mv zig-linux-x86_64-0.9.1/lib /usr/lib/zig
+  - build: |
+      cd waylock
+      zig build -Dman-pages
+  - fmt: |
+      cd waylock
+      zig fmt --check build.zig
+      zig fmt --check src/
