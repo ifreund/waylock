@@ -1,0 +1,33 @@
+image: alpine/edge
+packages:
+  - libxkbcommon-dev
+  - pkgconf
+  - scdoc
+  - tar
+  - wayland-dev
+  - wayland-protocols
+  - wget
+  - xz
+sources:
+  - https://github.com/ifreund/waylock
+  - https://gitlab.freedesktop.org/wlroots/wlroots
+tasks:
+  - install_deps: |
+      cd wlroots
+      git checkout 0.15.1
+      meson build --auto-features=enabled -Drenderers=gles2 -Dexamples=false \
+            -Dwerror=false -Db_ndebug=false -Dxcb-errors=disabled --prefix /usr
+      sudo ninja -C build/ install
+      cd ..
+
+      wget -nv https://ziglang.org/download/0.9.1/zig-linux-x86_64-0.9.1.tar.xz
+      tar -xvf zig-linux-x86_64-0.9.1.tar.xz 1>/dev/null
+      sudo mv zig-linux-x86_64-0.9.1/zig /usr/bin/
+      sudo mv zig-linux-x86_64-0.9.1/lib /usr/lib/zig
+  - build: |
+      cd waylock
+      zig build -Dman-pages
+  - fmt: |
+      cd waylock
+      zig fmt --check build.zig
+      zig fmt --check src/
