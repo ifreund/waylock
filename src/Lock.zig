@@ -66,7 +66,6 @@ session_lock: ?*ext.SessionLockV1 = null,
 viewporter: ?*wp.Viewporter = null,
 buffers: [3]*wl.Buffer,
 
-// TODO write a nicer, probably intrusive, linked list
 seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
 
@@ -411,7 +410,6 @@ fn fatal_not_advertised(comptime Global: type) noreturn {
 fn create_buffers(shm: *wl.Shm, options: Options) ![3]*wl.Buffer {
     const shm_size = 3 * @sizeOf(u32);
 
-    // TODO support non-linux systems
     const fd = try shm_fd_create();
     defer os.close(fd);
 
