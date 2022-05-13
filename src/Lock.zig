@@ -1,6 +1,7 @@
 const Lock = @This();
 
 const std = @import("std");
+const builtin = @import("builtin");
 const assert = std.debug.assert;
 const log = std.log;
 const mem = std.mem;
@@ -411,7 +412,7 @@ fn create_buffers(shm: *wl.Shm, options: Options) ![3]*wl.Buffer {
     const shm_size = 3 * @sizeOf(u32);
 
     // TODO support non-linux systems
-    const fd = try os.memfd_create("waylock-shm-buffer-pool", os.linux.MFD_CLOEXEC);
+    const fd = try shm_fd_create();
     defer os.close(fd);
 
     try os.ftruncate(fd, shm_size);
@@ -432,4 +433,30 @@ fn create_buffers(shm: *wl.Shm, options: Options) ![3]*wl.Buffer {
     }
 
     return buffers;
+}
+
+fn shm_fd_create() !os.fd_t {
+    switch (builtin.target.os.tag) {
+        .linux => {
+            return os.memfd_createZ("waylock-shm", os.linux.MFD_CLOEXEC);
+        },
+        .freebsd => {
+            // TODO upstream this to the zig standard library
+            const freebsd = struct {
+                const MFD_CLOEXEC = 1;
+                extern fn memfd_create(name: [*:0]const u8, flags: c_uint) c_int;
+            };
+
+            const ret = freebsd.memfd_create("waylock-shm", freebsd.MFD_CLOEXEC);
+            switch (os.errno(ret)) {
+                .SUCCESS => return ret,
+                .BADF => unreachable,
+                .INVAL => unreachable,
+                .NFILE => return error.SystemFdQuotaExceeded,
+                .MFILE => return error.ProcessFdQuotaExceeded,
+                else => |err| return os.unexpectedErrno(err),
+            }
+        },
+        else => @compileError("Target OS not supported"),
+    }
 }
