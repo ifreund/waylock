@@ -82,7 +82,7 @@ pub fn run(conn: Connection) noreturn {
         password.len = 0;
 
         if (auth_result == .success) {
-            log.info("PAM authentication succeeded", .{});
+            log.debug("PAM authentication succeeded", .{});
 
             conn.writer().writeByte(@boolToInt(true)) catch |err| {
                 log.err("failed to notify parent of success: {s}", .{@errorName(err)});
