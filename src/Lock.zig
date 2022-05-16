@@ -107,11 +107,8 @@ pub fn run(options: Options) void {
 
     {
         const errno = lock.display.roundtrip();
-        switch (errno) {
-            .SUCCESS => {},
-            else => {
-                fatal("initial roundtrip failed: {s}", .{@tagName(errno)});
-            },
+        if (errno != .SUCCESS) {
+            fatal("initial roundtrip failed: {s}", .{@tagName(errno)});
         }
     }
 
@@ -159,11 +156,8 @@ pub fn run(options: Options) void {
 
         if (lock.pollfds[poll_wayland].revents & os.POLL.IN != 0) {
             const errno = lock.display.readEvents();
-            switch (errno) {
-                .SUCCESS => {},
-                else => {
-                    fatal("error reading wayland events: {s}", .{@tagName(errno)});
-                },
+            if (errno != .SUCCESS) {
+                fatal("error reading wayland events: {s}", .{@tagName(errno)});
             }
         } else {
             lock.display.cancelRead();
@@ -203,11 +197,8 @@ pub fn run(options: Options) void {
 fn flush_wayland_and_prepare_read(lock: *Lock) void {
     while (!lock.display.prepareRead()) {
         const errno = lock.display.dispatchPending();
-        switch (errno) {
-            .SUCCESS => {},
-            else => {
-                fatal("failed to dispatch pending wayland events: E{s}", .{@tagName(errno)});
-            },
+        if (errno != .SUCCESS) {
+            fatal("failed to dispatch pending wayland events: E{s}", .{@tagName(errno)});
         }
     }
 
@@ -282,7 +273,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
             } else if (std.cstr.cmp(ev.interface, wl.Compositor.getInterface().name) == 0) {
                 // Version 4 required for wl_surface.damage_buffer
                 if (ev.version < 4) {
-                    fatal("The advertised wl_compositor version is too old. Version 4 is required.", .{});
+                    fatal("advertised wl_compositor version too old, version 4 required", .{});
                 }
                 lock.compositor = try registry.bind(ev.name, wl.Compositor, 4);
             } else if (std.cstr.cmp(ev.interface, ext.SessionLockManagerV1.getInterface().name) == 0) {
@@ -290,7 +281,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
             } else if (std.cstr.cmp(ev.interface, wl.Output.getInterface().name) == 0) {
                 // Version 3 required for wl_output.release
                 if (ev.version < 3) {
-                    fatal("The advertised wl_output version is too old. Version 3 is required.", .{});
+                    fatal("advertised wl_output version too old, version 3 required", .{});
                 }
                 const wl_output = try registry.bind(ev.name, wl.Output, 3);
                 errdefer wl_output.release();
@@ -312,7 +303,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
             } else if (std.cstr.cmp(ev.interface, wl.Seat.getInterface().name) == 0) {
                 // Version 5 required for wl_seat.release
                 if (ev.version < 5) {
-                    fatal("The advertised wl_seat version is too old. Version 5 is required.", .{});
+                    fatal("advertised wl_seat version too old, version 5 required.", .{});
                 }
                 const wl_seat = try registry.bind(ev.name, wl.Seat, 5);
                 errdefer wl_seat.release();

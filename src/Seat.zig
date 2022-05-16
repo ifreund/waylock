@@ -95,14 +95,12 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             defer os.close(ev.fd);
 
             if (ev.format != .xkb_v1) {
-                log.err("Unsupported keymap format {d}. Keyboard input may be ignored.", .{
-                    @enumToInt(ev.format),
-                });
+                log.err("unsupported keymap format {d}", .{@enumToInt(ev.format)});
                 return;
             }
 
             const keymap_string = os.mmap(null, ev.size, os.PROT.READ, os.MAP.PRIVATE, ev.fd, 0) catch |err| {
-                log.err("Failed to mmap() keymap fd: {s}", .{@errorName(err)});
+                log.err("failed to mmap() keymap fd: {s}", .{@errorName(err)});
                 return;
             };
             defer os.munmap(keymap_string);
@@ -115,13 +113,13 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                 .text_v1,
                 .no_flags,
             ) orelse {
-                log.err("Failed to parse xkb keymap. Keyboard input may be ignored.", .{});
+                log.err("failed to parse xkb keymap", .{});
                 return;
             };
             defer keymap.unref();
 
             const state = xkb.State.new(keymap) orelse {
-                log.err("Failed to create xkb state. Keyboard input may be ignored.", .{});
+                log.err("failed to create xkb state", .{});
                 return;
             };
             defer state.unref();
@@ -185,7 +183,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             // If key was not handled, write to password buffer
             const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
             lock.password.resize(lock.password.len + used) catch {
-                log.err("Password exceeds {} byte limit.", .{lock.password.capacity()});
+                log.err("password exceeds {} byte limit", .{lock.password.capacity()});
             };
         },
         .repeat_info => {},
