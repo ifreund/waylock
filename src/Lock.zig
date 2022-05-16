@@ -320,18 +320,29 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                 const node = try gpa.create(std.SinglyLinkedList(Seat).Node);
                 errdefer gpa.destroy(node);
 
-                node.data.init(lock, wl_seat);
+                node.data.init(lock, ev.name, wl_seat);
                 lock.seats.prepend(node);
             } else if (std.cstr.cmp(ev.interface, wp.Viewporter.getInterface().name) == 0) {
                 lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
             }
         },
         .global_remove => |ev| {
-            var it = lock.outputs.first;
-            while (it) |node| : (it = node.next) {
-                if (node.data.name == ev.name) {
-                    node.data.destroy();
-                    break;
+            {
+                var it = lock.outputs.first;
+                while (it) |node| : (it = node.next) {
+                    if (node.data.name == ev.name) {
+                        node.data.destroy();
+                        break;
+                    }
+                }
+            }
+            {
+                var it = lock.seats.first;
+                while (it) |node| : (it = node.next) {
+                    if (node.data.name == ev.name) {
+                        node.data.destroy();
+                        break;
+                    }
                 }
             }
         },

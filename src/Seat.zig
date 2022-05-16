@@ -15,14 +15,16 @@ const Lock = @import("Lock.zig");
 const gpa = std.heap.c_allocator;
 
 lock: *Lock,
+name: u32,
 wl_seat: *wl.Seat,
 wl_pointer: ?*wl.Pointer = null,
 wl_keyboard: ?*wl.Keyboard = null,
 xkb_state: ?*xkb.State = null,
 
-pub fn init(seat: *Seat, lock: *Lock, wl_seat: *wl.Seat) void {
+pub fn init(seat: *Seat, lock: *Lock, name: u32, wl_seat: *wl.Seat) void {
     seat.* = .{
         .lock = lock,
+        .name = name,
         .wl_seat = wl_seat,
     };
 
