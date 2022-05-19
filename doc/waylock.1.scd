@@ -48,6 +48,9 @@ To unlock the session, type your password and press Enter. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color
 will change to the *-fail-color* and you may try again.
 
+To detach waylock from the controlling terminal to run as a daemon, *setsid*(1)
+may be used.
+
 # AUTHORS
 
 Maintained by Isaac Freund <mail@isaacfreund.com> who is assisted by open
@@ -56,4 +59,4 @@ https://github.com/ifreund/waylock.
 
 # SEE ALSO
 
-*pam*(8)
+*pam*(8), *setsid*(1)
