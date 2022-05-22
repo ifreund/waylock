@@ -5,6 +5,19 @@ your job harder until Zig is more mature/stable. I do however believe that
 writing my software in Zig allows me to deliver the best quality I can
 despite the drawbacks of depending on a relatively immature language/toolchain.
 
+## Source tarballs
+
+Source tarballs with stable checksums and git submodule sources included may
+be found on the [github releases](https://github.com/ifreund/waylock/releases)
+page. These tarballs are signed with the PGP key available on my website at
+<https://isaacfreund.com/public_key.txt>.
+
+For the 0.4.0 release for example, the tarball and signature URLs are:
+```
+https://github.com/ifreund/waylock/releases/download/v0.4.0/waylock-0.4.0.tar.gz
+https://github.com/ifreund/waylock/releases/download/v0.4.0/waylock-0.4.0.tar.gz.sig
+```
+
 ## Zig version
 
 Until Zig 1.0, Zig releases will often have breaking changes that prevent
