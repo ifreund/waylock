@@ -16,6 +16,9 @@ pub fn build(b: *zbs.Builder) !void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
+    const strip = b.option(bool, "strip", "Omit debug information") orelse false;
+    const pie = b.option(bool, "pie", "Build a Position Independent Executable") orelse false;
+
     const man_pages = b.option(
         bool,
         "man-pages",
@@ -99,6 +102,8 @@ pub fn build(b: *zbs.Builder) !void {
 
     scanner.addCSource(waylock);
 
+    waylock.strip = strip;
+    waylock.pie = pie;
     waylock.install();
 }
 
