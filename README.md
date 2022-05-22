@@ -6,7 +6,7 @@ more robust than previous client-side Wayland screen locking approaches.
 Importantly, the screenlocker crashing does not cause the session to be
 unlocked.
 
-In addition, waylock has been entirely rewritten since version 0.3.4 for
+In addition, waylock has been entirely rewritten since version 0.3.5 for
 security and simplicity. It now benefits from everything I've learned
 about Wayland and programming in general over the past few years working on
 [river](https://github.com/riverwm/river).
