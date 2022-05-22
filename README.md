@@ -42,6 +42,9 @@ likely `/etc/pam.d` by default. Therefore care must be taken if
 installing to a prefix other than `/usr` to ensure the configuration file
 [pam.d/waylock](pam.d/waylock) is found by PAM.
 
+If you are packaging waylock for distribution, see also
+[PACKAGING.md](PACKAGING.md).
+
 ## Usage
 
 See the `waylock(1)` man page or the output of `waylock -h` for an overview
