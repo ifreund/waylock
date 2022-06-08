@@ -5,6 +5,13 @@ your job harder until Zig is more mature/stable. I do however believe that
 writing my software in Zig allows me to deliver the best quality I can
 despite the drawbacks of depending on a relatively immature language/toolchain.
 
+*Note: At the time of writing there are to my knowledge no released versions
+of wayland compositors implementing the ext-session-lock-v1 protocol waylock
+requires. The next [river](https://github.com/riverwm/river) and
+[sway](https://swaywm.org/) releases will support the protocol, expect them
+to land shortly after wlroots 0.16.0. It is recommended to hold off on
+packaging waylock 0.4.0 until after those releases land.*
+
 ## Source tarballs
 
 Source tarballs with stable checksums and git submodule sources included may
