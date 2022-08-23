@@ -183,7 +183,15 @@ pub fn run(options: Options) void {
         }
     }
 
-    lock.flush_wayland_and_prepare_read();
+    // Ideally we would only need a call to flush_wayland_and_prepare_read()
+    // here but there is unfortunately a race condition in libwayland-server.
+    // See https://gitlab.freedesktop.org/wayland/wayland/-/merge_requests/262
+    // TODO replace this with flush_wayland_and_prepare_read() at some point
+    // after a fixed libwayland version has been released.
+    const errno = lock.display.roundtrip();
+    if (errno != .SUCCESS) {
+        fatal("final roundtrip failed: E{s}", .{@tagName(errno)});
+    }
 }
 
 /// This function does the following:
