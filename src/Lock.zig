@@ -180,8 +180,6 @@ pub fn run(options: Options) void {
                     fatal("unexpected response recieved from child authentication process: {d}", .{byte});
                 },
             }
-        } else if (lock.pollfds[poll_auth].revents & os.POLL.HUP != 0) {
-            fatal("child authentication process exited unexpectedly", .{});
         }
     }
 
