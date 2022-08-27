@@ -183,11 +183,10 @@ pub fn run(options: Options) void {
         }
     }
 
-    // Ideally we would only need a call to flush_wayland_and_prepare_read()
-    // here but there is unfortunately a race condition in libwayland-server.
-    // See https://gitlab.freedesktop.org/wayland/wayland/-/merge_requests/262
-    // TODO replace this with flush_wayland_and_prepare_read() at some point
-    // after a fixed libwayland version has been released.
+    // Calling flush_wayland_and_prepare_read() is not sufficient here as we
+    // don't want to exit cleanly until the server processes our request to
+    // unlock the session. The only way to guarantee this has occurred is
+    // through a roundtrip using the wl_display.sync request.
     const errno = lock.display.roundtrip();
     if (errno != .SUCCESS) {
         fatal("final roundtrip failed: E{s}", .{@tagName(errno)});
