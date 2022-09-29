@@ -103,7 +103,7 @@ pub fn run(conn: Connection) noreturn {
 
             const end_result = pamh.end(setcred_result);
             if (end_result != .success) {
-                log.err("PAM deinitialization failed: {s}", .{end_result});
+                log.err("PAM deinitialization failed: {s}", .{end_result.description()});
             }
 
             os.exit(0);
@@ -118,7 +118,7 @@ pub fn run(conn: Connection) noreturn {
             if (auth_result == .abort) {
                 const end_result = pamh.end(auth_result);
                 if (end_result != .success) {
-                    log.err("PAM deinitialization failed: {s}", .{end_result});
+                    log.err("PAM deinitialization failed: {s}", .{end_result.description()});
                 }
                 os.exit(1);
             }
