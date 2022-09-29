@@ -32,7 +32,8 @@ pub const Message = extern struct {
 };
 
 pub const Response = extern struct {
-    resp: [*:0]u8,
+    /// This field should always be either null or allocated using libc's malloc, never undefined.
+    resp: ?[*:0]u8 = null,
 
     /// From pam_conv(3):
     /// "The resp_retcode member of this struct is unused and should be set to zero."
