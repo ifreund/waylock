@@ -92,7 +92,7 @@ pub fn build(b: *zbs.Builder) !void {
 
     waylock.addPackage(.{
         .name = "wayland",
-        .path = .{ .generated = &scanner.result },
+        .source = .{ .generated = &scanner.result },
     });
     waylock.step.dependOn(&scanner.step);
     waylock.addPackagePath("xkbcommon", "deps/zig-xkbcommon/src/xkbcommon.zig");

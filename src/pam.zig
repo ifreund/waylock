@@ -41,7 +41,7 @@ pub const Response = extern struct {
 };
 
 pub const Conv = extern struct {
-    conv: fn (
+    conv: *const fn (
         num_msg: c_int,
         /// Note: This matches the Linux-PAM API, apparently Solaris PAM differs
         /// in how the msg argument is used.
