@@ -1,6 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log;
+const mem = std.mem;
 const os = std.os;
 
 const pam = @import("pam.zig");
@@ -146,6 +147,9 @@ fn converse(
         return .buf_err;
     };
 
+    mem.set(pam.Response, responses, .{});
+    resp.* = responses.ptr;
+
     for (msg[0..count]) |message, i| {
         switch (message.msg_style) {
             .prompt_echo_off => {
@@ -163,8 +167,6 @@ fn converse(
             },
         }
     }
-
-    resp.* = responses.ptr;
 
     return .success;
 }
