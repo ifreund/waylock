@@ -2,7 +2,7 @@ WAYLOCK(1) "github.com/ifreund/waylock" "General Commands Manual"
 
 # NAME
 
-waylock - a small Wayland screenocker
+waylock - a small Wayland screenlocker
 
 # SYNOPSIS
 
