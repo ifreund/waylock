@@ -256,7 +256,8 @@ fn deinit(lock: *Lock) void {
 
     lock.xkb_context.unref();
 
-    assert(lock.password.len == 0);
+    // There may be further input after submitting a valid password.
+    lock.clear_password();
 
     lock.* = undefined;
 }
