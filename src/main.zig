@@ -17,6 +17,8 @@ const usage =
     \\  -version               Print the version number and exit.
     \\  -log-level <level>     Set the log level to error, warning, info, or debug.
     \\
+    \\  -fork-on-lock          Fork to the background after locking.
+    \\
     \\  -init-color 0xRRGGBB   Set the initial color.
     \\  -input-color 0xRRGGBB  Set the color used after input.
     \\  -fail-color 0xRRGGBB   Set the color used on authentication failure.
@@ -32,6 +34,7 @@ pub fn main() void {
         .{ .name = "-h", .kind = .boolean },
         .{ .name = "-version", .kind = .boolean },
         .{ .name = "-log-level", .kind = .arg },
+        .{ .name = "-fork-on-lock", .kind = .boolean },
         .{ .name = "-init-color", .kind = .arg },
         .{ .name = "-input-color", .kind = .arg },
         .{ .name = "-fail-color", .kind = .arg },
@@ -68,7 +71,9 @@ pub fn main() void {
         }
     }
 
-    var options: Lock.Options = .{};
+    var options: Lock.Options = .{
+        .fork_on_lock = result.boolFlag("-fork-on-lock"),
+    };
     if (result.argFlag("-init-color")) |raw| options.init_color = parse_color(raw);
     if (result.argFlag("-input-color")) |raw| options.input_color = parse_color(raw);
     if (result.argFlag("-fail-color")) |raw| options.fail_color = parse_color(raw);

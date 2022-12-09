@@ -28,6 +28,7 @@ pub const Color = enum {
 };
 
 pub const Options = struct {
+    fork_on_lock: bool,
     init_color: u32 = 0xff002b36,
     input_color: u32 = 0xff6c71c4,
     fail_color: u32 = 0xffdc322f,
@@ -44,7 +45,7 @@ pub const Options = struct {
 state: enum {
     /// The session lock object has not yet been created.
     initializing,
-    /// The session lock object has been created but the locked event has not been recieved.
+    /// The session lock object has been created but the locked event has not been received.
     locking,
     /// The compositor has sent the locked event indicating that the session is locked.
     locked,
@@ -55,6 +56,8 @@ state: enum {
 } = .initializing,
 
 color: Color = .init,
+
+fork_on_lock: bool,
 
 pollfds: [2]os.pollfd,
 
@@ -75,6 +78,7 @@ auth_connection: auth.Connection,
 
 pub fn run(options: Options) void {
     var lock: Lock = .{
+        .fork_on_lock = options.fork_on_lock,
         .pollfds = undefined,
         .display = wl.Display.connect(null) catch |err| {
             fatal("failed to connect to a wayland compositor: {s}", .{@errorName(err)});
@@ -177,7 +181,7 @@ pub fn run(options: Options) void {
                     lock.set_color(.fail);
                 },
                 else => {
-                    fatal("unexpected response recieved from child authentication process: {d}", .{byte});
+                    fatal("unexpected response received from child authentication process: {d}", .{byte});
                 },
             }
         }
@@ -351,6 +355,7 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
         .locked => {
             assert(lock.state == .locking);
             lock.state = .locked;
+            if (lock.fork_on_lock) fork_to_background();
         },
         .finished => {
             switch (lock.state) {
@@ -464,5 +469,28 @@ fn shm_fd_create() !os.fd_t {
             }
         },
         else => @compileError("Target OS not supported"),
+    }
+}
+
+// TODO: Upstream this to the Zig standard library
+extern fn setsid() os.pid_t;
+
+fn fork_to_background() void {
+    const pid = os.fork() catch |err| fatal("fork failed: {s}", .{@errorName(err)});
+    if (pid == 0) {
+        // This can't fail as we are the child of a fork() and therefore not
+        // a process group leader.
+        assert(setsid() != -1);
+        // Ensure the working directory is on the root filesystem to avoid potentially
+        // blocking some other filesystem from being unmounted.
+        os.chdirZ("/") catch |err| {
+            // While this is a nice thing to do, it is not critical to the locking functionality
+            // and it is better to allow potentially unlocking the session rather than aborting
+            // and leaving the session locked if this fails.
+            log.warn("failed to change working directory to / on fork: {s}", .{@errorName(err)});
+        };
+    } else {
+        // Terminate the parent process with a clean exit code.
+        os.exit(0);
     }
 }

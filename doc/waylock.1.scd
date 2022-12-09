@@ -29,6 +29,12 @@ unlocked.
 	are logged.  At the *debug* log level, everything is logged including
 	verbose debug messages.
 
+*-fork-on-lock*
+    Fork to the background after locking the session. This is useful to
+    integrate with idle management daemons without racing to lock the
+    session before suspend. With this option waylock will exit once the
+    session has been locked and it is safe to suspend.
+
 *-init-color* _0xRRGGBB_
 	Set the initial color. (default: 0x002b36)
 
@@ -47,9 +53,6 @@ blanked with the *-init-color*. Typing causes the color to change to the
 To unlock the session, type your password and press Enter. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color
 will change to the *-fail-color* and you may try again.
-
-To detach waylock from the controlling terminal and run as a daemon,
-*setsid*(1) may be used.
 
 # AUTHORS
 
