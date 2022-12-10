@@ -30,10 +30,10 @@ unlocked.
 	verbose debug messages.
 
 *-fork-on-lock*
-    Fork to the background after locking the session. This is useful to
-    integrate with idle management daemons without racing to lock the
-    session before suspend. With this option waylock will exit once the
-    session has been locked and it is safe to suspend.
+	Fork to the background after locking the session. This is useful to
+	integrate with idle management daemons without racing to lock the
+	session before suspend. With this option waylock will exit once the
+	session has been locked and it is safe to suspend.
 
 *-init-color* _0xRRGGBB_
 	Set the initial color. (default: 0x002b36)
