@@ -161,7 +161,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     return;
                 },
                 xkb.Keysym.Escape => {
-                    lock.clear_password();
+                    lock.password.clear();
                     lock.set_color(.init);
                     return;
                 },
@@ -173,7 +173,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     ) == 1;
 
                     if (ctrl_active) {
-                        lock.clear_password();
+                        lock.password.clear();
                         lock.set_color(.init);
                         return;
                     }
@@ -181,10 +181,8 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                 else => {},
             }
             // If key was not handled, write to password buffer
-            const used = xkb_state.keyGetUtf8(keycode, lock.password.unusedCapacitySlice());
-            lock.password.resize(lock.password.len + used) catch {
-                log.err("password exceeds {} byte limit", .{lock.password.capacity()});
-            };
+            const delta = xkb_state.keyGetUtf8(keycode, lock.password.unused_slice());
+            lock.password.grow(delta) catch log.err("password exceeds 1024 byte limit", .{});
         },
         .repeat_info => {},
     }

@@ -6,6 +6,8 @@ const os = std.os;
 
 const pam = @import("pam.zig");
 
+const PasswordBuffer = @import("PasswordBuffer.zig");
+
 pub const Connection = struct {
     read_fd: os.fd_t,
     write_fd: os.fd_t,
@@ -47,11 +49,11 @@ pub fn fork_child() !Connection {
     }
 }
 
-/// Maximum password size in bytes.
-pub const password_size_max = 1024;
-var password: std.BoundedArray(u8, password_size_max) = .{ .buffer = undefined };
+var password: PasswordBuffer = undefined;
 
 pub fn run(conn: Connection) noreturn {
+    password = PasswordBuffer.init();
+
     const conv: pam.Conv = .{
         .conv = converse,
         .appdata_ptr = null,
@@ -79,8 +81,7 @@ pub fn run(conn: Connection) noreturn {
 
         const auth_result = pamh.authenticate(0);
 
-        std.crypto.utils.secureZero(u8, &password.buffer);
-        password.len = 0;
+        password.clear();
 
         if (auth_result == .success) {
             log.debug("PAM authentication succeeded", .{});
@@ -126,12 +127,12 @@ pub fn run(conn: Connection) noreturn {
 }
 
 fn read_password(conn: Connection) !void {
-    assert(password.len == 0);
+    assert(password.buffer.len == 0);
 
     const reader = conn.reader();
     const length = try reader.readIntNative(u32);
-    try password.resize(length);
-    try reader.readNoEof(password.slice());
+    try password.grow(length);
+    try reader.readNoEof(password.buffer);
 }
 
 fn converse(
@@ -154,7 +155,7 @@ fn converse(
         switch (message.msg_style) {
             .prompt_echo_off => {
                 responses[i] = .{
-                    .resp = ally.dupeZ(u8, password.slice()) catch {
+                    .resp = ally.dupeZ(u8, password.buffer) catch {
                         return .buf_err;
                     },
                 };

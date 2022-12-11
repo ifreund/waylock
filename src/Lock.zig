@@ -18,6 +18,7 @@ const auth = @import("auth.zig");
 
 const Output = @import("Output.zig");
 const Seat = @import("Seat.zig");
+const PasswordBuffer = @import("PasswordBuffer.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -73,7 +74,7 @@ seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
 
 xkb_context: *xkb.Context,
-password: std.BoundedArray(u8, auth.password_size_max) = .{ .buffer = undefined },
+password: PasswordBuffer,
 auth_connection: auth.Connection,
 
 pub fn run(options: Options) void {
@@ -83,11 +84,12 @@ pub fn run(options: Options) void {
         .display = wl.Display.connect(null) catch |err| {
             fatal("failed to connect to a wayland compositor: {s}", .{@errorName(err)});
         },
+        .buffers = undefined,
         .xkb_context = xkb.Context.new(.no_flags) orelse fatal_oom(),
+        .password = PasswordBuffer.init(),
         .auth_connection = auth.fork_child() catch |err| {
             fatal("failed to fork child authentication process: {s}", .{@errorName(err)});
         },
-        .buffers = undefined,
     };
     defer lock.deinit();
 
@@ -261,7 +263,7 @@ fn deinit(lock: *Lock) void {
     lock.xkb_context.unref();
 
     // There may be further input after submitting a valid password.
-    lock.clear_password();
+    lock.password.clear();
 
     lock.* = undefined;
 }
@@ -384,15 +386,10 @@ pub fn submit_password(lock: *Lock) void {
 }
 
 fn send_password_to_auth(lock: *Lock) !void {
-    defer lock.clear_password();
+    defer lock.password.clear();
     const writer = lock.auth_connection.writer();
-    try writer.writeIntNative(u32, @intCast(u32, lock.password.len));
-    try writer.writeAll(lock.password.slice());
-}
-
-pub fn clear_password(lock: *Lock) void {
-    std.crypto.utils.secureZero(u8, &lock.password.buffer);
-    lock.password.len = 0;
+    try writer.writeIntNative(u32, @intCast(u32, lock.password.buffer.len));
+    try writer.writeAll(lock.password.buffer);
 }
 
 pub fn set_color(lock: *Lock, color: Color) void {
