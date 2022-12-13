@@ -369,7 +369,7 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
                 .locking => {
                     log.err("the wayland compositor has denied our attempt to lock the session, " ++
                         "is another ext-session-lock client already running?", .{});
-                    lock.state = .exiting;
+                    os.exit(1);
                 },
                 .locked => {
                     log.info("the wayland compositor has unlocked the session, exiting", .{});
