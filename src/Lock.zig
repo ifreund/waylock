@@ -86,7 +86,10 @@ pub fn run(options: Options) void {
         },
         .buffers = undefined,
         .xkb_context = xkb.Context.new(.no_flags) orelse fatal_oom(),
-        .password = PasswordBuffer.init(),
+        // This is not initializing until afer the session is locked as we may need to
+        // fork at that time due to the -fork-on-lock option and mlock is not inherited
+        // by the child process.
+        .password = undefined,
         .auth_connection = auth.fork_child() catch |err| {
             fatal("failed to fork child authentication process: {s}", .{@errorName(err)});
         },
@@ -358,6 +361,7 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
             assert(lock.state == .locking);
             lock.state = .locked;
             if (lock.fork_on_lock) fork_to_background();
+            lock.password = PasswordBuffer.init();
         },
         .finished => {
             switch (lock.state) {
