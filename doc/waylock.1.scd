@@ -62,4 +62,4 @@ https://github.com/ifreund/waylock.
 
 # SEE ALSO
 
-*pam*(8), *setsid*(1)
+*pam*(8)

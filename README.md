@@ -58,9 +58,6 @@ To unlock the session, type your password and press `Enter`. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color
 will change to the `-fail-color` and you may try again.
 
-To detach waylock from the controlling terminal and run as a daemon,
-`setsid(1)` may be used.
-
 ## Licensing
 
 Waylock is released under the ISC License.
