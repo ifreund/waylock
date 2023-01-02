@@ -373,7 +373,7 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
                 },
                 .locked => {
                     log.info("the wayland compositor has unlocked the session, exiting", .{});
-                    lock.state = .exiting;
+                    os.exit(0);
                 },
                 .exiting => unreachable,
             }
