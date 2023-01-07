@@ -28,6 +28,11 @@ pub fn init() PasswordBuffer {
     return password;
 }
 
+pub fn protect_after_fork(password: *PasswordBuffer) void {
+    prevent_swapping(password.buffer);
+    prevent_dumping_best_effort(password.buffer);
+}
+
 pub fn unused_slice(password: PasswordBuffer) []u8 {
     return password.buffer.ptr[password.buffer.len..size_max];
 }
