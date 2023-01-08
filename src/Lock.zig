@@ -30,11 +30,11 @@ pub const Color = enum {
 
 pub const Options = struct {
     fork_on_lock: bool,
-    init_color: u32 = 0xff002b36,
-    input_color: u32 = 0xff6c71c4,
-    fail_color: u32 = 0xffdc322f,
+    init_color: u24 = 0x002b36,
+    input_color: u24 = 0x6c71c4,
+    fail_color: u24 = 0xdc322f,
 
-    fn argb(options: Options, color: Color) u32 {
+    fn rgb(options: Options, color: Color) u24 {
         return switch (color) {
             .init => options.init_color,
             .input => options.input_color,
@@ -63,11 +63,11 @@ fork_on_lock: bool,
 pollfds: [2]os.pollfd,
 
 display: *wl.Display,
-shm: ?*wl.Shm = null,
 compositor: ?*wl.Compositor = null,
 session_lock_manager: ?*ext.SessionLockManagerV1 = null,
 session_lock: ?*ext.SessionLockV1 = null,
 viewporter: ?*wp.Viewporter = null,
+buffer_manager: ?*wp.SinglePixelBufferManagerV1 = null,
 buffers: [3]*wl.Buffer,
 
 seats: std.SinglyLinkedList(Seat) = .{},
@@ -118,16 +118,14 @@ pub fn run(options: Options) void {
         }
     }
 
-    if (lock.shm == null) fatal_not_advertised(wl.Shm);
     if (lock.compositor == null) fatal_not_advertised(wl.Compositor);
     if (lock.session_lock_manager == null) fatal_not_advertised(ext.SessionLockManagerV1);
     if (lock.viewporter == null) fatal_not_advertised(wp.Viewporter);
+    if (lock.buffer_manager == null) fatal_not_advertised(wp.SinglePixelBufferManagerV1);
 
-    lock.buffers = create_buffers(lock.shm.?, options) catch |err| {
-        fatal("failed to create buffers: {s}", .{@errorName(err)});
-    };
-    lock.shm.?.destroy();
-    lock.shm = null;
+    lock.buffers = create_buffers(lock.buffer_manager.?, options) catch fatal_oom();
+    lock.buffer_manager.?.destroy();
+    lock.buffer_manager = null;
 
     lock.session_lock = lock.session_lock_manager.?.lock() catch fatal_oom();
     lock.session_lock.?.setListener(*Lock, session_lock_listener, &lock);
@@ -251,7 +249,7 @@ fn deinit(lock: *Lock) void {
     if (lock.viewporter) |viewporter| viewporter.destroy();
     for (lock.buffers) |buffer| buffer.destroy();
 
-    assert(lock.shm == null);
+    assert(lock.buffer_manager == null);
     assert(lock.session_lock_manager == null);
     assert(lock.session_lock == null);
 
@@ -280,9 +278,7 @@ fn registry_listener(registry: *wl.Registry, event: wl.Registry.Event, lock: *Lo
 fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event) !void {
     switch (event) {
         .global => |ev| {
-            if (std.cstr.cmp(ev.interface, wl.Shm.getInterface().name) == 0) {
-                lock.shm = try registry.bind(ev.name, wl.Shm, 1);
-            } else if (std.cstr.cmp(ev.interface, wl.Compositor.getInterface().name) == 0) {
+            if (std.cstr.cmp(ev.interface, wl.Compositor.getInterface().name) == 0) {
                 // Version 4 required for wl_surface.damage_buffer
                 if (ev.version < 4) {
                     fatal("advertised wl_compositor version too old, version 4 required", .{});
@@ -327,6 +323,8 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                 lock.seats.prepend(node);
             } else if (std.cstr.cmp(ev.interface, wp.Viewporter.getInterface().name) == 0) {
                 lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
+            } else if (std.cstr.cmp(ev.interface, wp.SinglePixelBufferManagerV1.getInterface().name) == 0) {
+                lock.buffer_manager = try registry.bind(ev.name, wp.SinglePixelBufferManagerV1, 1);
             }
         },
         .global_remove => |ev| {
@@ -419,57 +417,21 @@ fn fatal_not_advertised(comptime Global: type) noreturn {
     fatal("{s} not advertised", .{Global.getInterface().name});
 }
 
-/// Create 3 1x1 buffers backed by the same shared memory
-fn create_buffers(shm: *wl.Shm, options: Options) ![3]*wl.Buffer {
-    const shm_size = 3 * @sizeOf(u32);
-
-    const fd = try shm_fd_create();
-    defer os.close(fd);
-
-    try os.ftruncate(fd, shm_size);
-
-    const pool = try shm.createPool(fd, shm_size);
-    defer pool.destroy();
-
-    const backing_memory = mem.bytesAsSlice(
-        u32,
-        try os.mmap(null, shm_size, os.PROT.READ | os.PROT.WRITE, os.MAP.SHARED, fd, 0),
-    );
-
+fn create_buffers(
+    buffer_manager: *wp.SinglePixelBufferManagerV1,
+    options: Options,
+) error{OutOfMemory}![3]*wl.Buffer {
     var buffers: [3]*wl.Buffer = undefined;
     for ([_]Color{ .init, .input, .fail }) |color| {
-        const i: u31 = @enumToInt(color);
-        backing_memory[i] = options.argb(color);
-        buffers[i] = try pool.createBuffer(i * @sizeOf(u32), 1, 1, @sizeOf(u32), .argb8888);
+        const rgb = options.rgb(color);
+        buffers[@enumToInt(color)] = try buffer_manager.createU32RgbaBuffer(
+            @as(u32, (rgb >> 16) & 0xff) * (0xffff_ffff / 0xff),
+            @as(u32, (rgb >> 8) & 0xff) * (0xffff_ffff / 0xff),
+            @as(u32, (rgb >> 0) & 0xff) * (0xffff_ffff / 0xff),
+            0xffff_ffff,
+        );
     }
-
     return buffers;
-}
-
-fn shm_fd_create() !os.fd_t {
-    switch (builtin.target.os.tag) {
-        .linux => {
-            return os.memfd_createZ("waylock-shm", os.linux.MFD_CLOEXEC);
-        },
-        .freebsd => {
-            // TODO upstream this to the zig standard library
-            const freebsd = struct {
-                const MFD_CLOEXEC = 1;
-                extern fn memfd_create(name: [*:0]const u8, flags: c_uint) c_int;
-            };
-
-            const ret = freebsd.memfd_create("waylock-shm", freebsd.MFD_CLOEXEC);
-            switch (os.errno(ret)) {
-                .SUCCESS => return ret,
-                .BADF => unreachable,
-                .INVAL => unreachable,
-                .NFILE => return error.SystemFdQuotaExceeded,
-                .MFILE => return error.ProcessFdQuotaExceeded,
-                else => |err| return os.unexpectedErrno(err),
-            }
-        },
-        else => @compileError("Target OS not supported"),
-    }
 }
 
 // TODO: Upstream this to the Zig standard library

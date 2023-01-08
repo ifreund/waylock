@@ -81,13 +81,11 @@ pub fn main() void {
     Lock.run(options);
 }
 
-fn parse_color(raw: []const u8) u32 {
+fn parse_color(raw: []const u8) u24 {
     if (raw.len != 8) fatal_bad_color(raw);
     if (!mem.eql(u8, raw[0..2], "0x")) fatal_bad_color(raw);
 
-    const rgb = std.fmt.parseUnsigned(u32, raw[2..], 16) catch fatal_bad_color(raw);
-    const argb = 0xff000000 | rgb;
-    return argb;
+    return std.fmt.parseUnsigned(u24, raw[2..], 16) catch fatal_bad_color(raw);
 }
 
 fn fatal_bad_color(raw: []const u8) noreturn {

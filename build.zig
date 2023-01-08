@@ -75,14 +75,15 @@ pub fn build(b: *zbs.Builder) !void {
 
     const scanner = ScanProtocolsStep.create(b);
     scanner.addSystemProtocol("staging/ext-session-lock/ext-session-lock-v1.xml");
+    scanner.addSystemProtocol("staging/single-pixel-buffer/single-pixel-buffer-v1.xml");
     scanner.addSystemProtocol("stable/viewporter/viewporter.xml");
 
     scanner.generate("wl_compositor", 4);
-    scanner.generate("wl_shm", 1);
     scanner.generate("wl_output", 3);
     scanner.generate("wl_seat", 5);
     scanner.generate("ext_session_lock_manager_v1", 1);
     scanner.generate("wp_viewporter", 1);
+    scanner.generate("wp_single_pixel_buffer_manager_v1", 1);
 
     const waylock = b.addExecutable("waylock", "src/main.zig");
     waylock.setTarget(target);
