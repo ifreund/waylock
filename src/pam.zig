@@ -134,7 +134,6 @@ pub const Result = enum(c_int) {
 
 // Flags intended to be bitwise or'ed together
 pub const flags = struct {
-
     /// Authentication service should not generate any messages
     pub const silent = 0x8000;
 
