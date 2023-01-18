@@ -157,7 +157,14 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
 
             switch (@enumToInt(keysym)) {
                 xkb.Keysym.Return => {
-                    lock.submit_password();
+                    // Ignore the attempt to submit the password if the locked event has not yet
+                    // been received. This should be pretty much impossible to happen in practice
+                    // as the compositor should send the locked event in a matter of milliseconds.
+                    // However if the compositor is behaving strangely it is better to ignore this
+                    // than crash on an assertion failure or commit a protocol error.
+                    if (lock.state == .locked) {
+                        lock.submit_password();
+                    }
                     return;
                 },
                 xkb.Keysym.Escape => {
