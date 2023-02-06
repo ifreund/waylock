@@ -4,6 +4,11 @@ const log = std.log;
 const mem = std.mem;
 const os = std.os;
 
+const c = @cImport({
+    @cInclude("unistd.h"); // getuid()
+    @cInclude("pwd.h"); // getpwuid()
+});
+
 const pam = @import("pam.zig");
 
 const PasswordBuffer = @import("PasswordBuffer.zig");
@@ -61,7 +66,7 @@ pub fn run(conn: Connection) noreturn {
     var pamh: *pam.Handle = undefined;
 
     {
-        const pw = getpwuid(os.linux.getuid()) orelse {
+        const pw = @as(?*c.struct_passwd, c.getpwuid(c.getuid())) orelse {
             log.err("failed to get name of current user", .{});
             os.exit(1);
         };
@@ -171,19 +176,3 @@ fn converse(
 
     return .success;
 }
-
-// TODO: upstream these to the zig standard library
-pub const passwd = extern struct {
-    pw_name: [*:0]const u8,
-    pw_passwd: [*:0]const u8,
-    pw_uid: os.uid_t,
-    pw_gid: os.gid_t,
-    pw_change: os.time_t,
-    pw_class: [*:0]const u8,
-    pw_gecos: [*:0]const u8,
-    pw_dir: [*:0]const u8,
-    pw_shell: [*:0]const u8,
-    pw_expire: os.time_t,
-};
-
-pub extern fn getpwuid(uid: os.uid_t) ?*passwd;
