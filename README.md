@@ -62,6 +62,19 @@ To unlock the session, type your password and press `Enter`. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color
 will change to the `-fail-color` and you may try again.
 
+## Integration with other tools
+
+If you are using `waylock` on a laptop, you might want to lock the session automatically before the device suspends (e.g. when the laptop lid is closed).
+You can do this with [swayidle](https://github.com/swaywm/swayidle) by running the following command:
+```
+swayidle -w \
+    before-sleep "waylock -fork-on-lock" \
+    timeout 600 "systemctl suspend" &
+```
+A quick explanation:
+`swayidle` will delay the locking until after `waylock` has returned.
+The timeout ensures that systemd suspends the system after a timeout.
+
 ## Licensing
 
 Waylock is released under the ISC License.
