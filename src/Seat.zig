@@ -145,9 +145,6 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
 
             const xkb_state = seat.xkb_state orelse return;
 
-            const lock = seat.lock;
-            lock.set_color(.input);
-
             // The wayland protocol gives us an input event code. To convert this to an xkb
             // keycode we must add 8.
             const keycode = ev.key + 8;
@@ -155,6 +152,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             const keysym = xkb_state.keyGetOneSym(keycode);
             if (keysym == .NoSymbol) return;
 
+            const lock = seat.lock;
             switch (@intFromEnum(keysym)) {
                 xkb.Keysym.Return => {
                     // Ignore the attempt to submit the password if the locked event has not yet
@@ -189,6 +187,9 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             }
             // If key was not handled, write to password buffer
             const delta = xkb_state.keyGetUtf8(keycode, lock.password.unused_slice());
+            if (delta > 0) {
+                lock.set_color(.input);
+            }
             lock.password.grow(delta) catch log.err("password exceeds 1024 byte limit", .{});
         },
         .repeat_info => {},
