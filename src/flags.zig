@@ -1,5 +1,5 @@
 const std = @import("std");
-const cstr = std.cstr;
+const mem = std.mem;
 
 pub const Flag = struct {
     name: [*:0]const u8,
@@ -24,7 +24,7 @@ pub fn ParseResult(comptime flags: []const Flag) type {
         flag_data: [flags.len]FlagData = blk: {
             // Init all flags to false/null
             var flag_data: [flags.len]FlagData = undefined;
-            inline for (flags) |flag, i| {
+            inline for (flags, 0..) |flag, i| {
                 flag_data[i] = switch (flag.kind) {
                     .boolean => .{
                         .name = flag.name,
@@ -41,14 +41,14 @@ pub fn ParseResult(comptime flags: []const Flag) type {
 
         pub fn boolFlag(self: Self, flag_name: [*:0]const u8) bool {
             for (self.flag_data) |flag_data| {
-                if (cstr.cmp(flag_data.name, flag_name) == 0) return flag_data.value.boolean;
+                if (mem.orderZ(u8, flag_data.name, flag_name) == .eq) return flag_data.value.boolean;
             }
             unreachable; // Invalid flag_name
         }
 
         pub fn argFlag(self: Self, flag_name: [*:0]const u8) ?[:0]const u8 {
             for (self.flag_data) |flag_data| {
-                if (cstr.cmp(flag_data.name, flag_name) == 0) {
+                if (mem.orderZ(u8, flag_data.name, flag_name) == .eq) {
                     return std.mem.span(flag_data.value.arg);
                 }
             }
@@ -63,8 +63,8 @@ pub fn parse(args: [][*:0]const u8, comptime flags: []const Flag) !ParseResult(f
     var arg_idx: usize = 0;
     while (arg_idx < args.len) : (arg_idx += 1) {
         var parsed_flag = false;
-        inline for (flags) |flag, flag_idx| {
-            if (cstr.cmp(flag.name, args[arg_idx]) == 0) {
+        inline for (flags, 0..) |flag, flag_idx| {
+            if (mem.orderZ(u8, flag.name, args[arg_idx]) == .eq) {
                 switch (flag.kind) {
                     .boolean => ret.flag_data[flag_idx].value.boolean = true,
                     .arg => {

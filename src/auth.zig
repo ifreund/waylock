@@ -91,7 +91,7 @@ pub fn run(conn: Connection) noreturn {
         if (auth_result == .success) {
             log.debug("PAM authentication succeeded", .{});
 
-            conn.writer().writeByte(@boolToInt(true)) catch |err| {
+            conn.writer().writeByte(@intFromBool(true)) catch |err| {
                 log.err("failed to notify parent of success: {s}", .{@errorName(err)});
                 os.exit(1);
             };
@@ -115,7 +115,7 @@ pub fn run(conn: Connection) noreturn {
         } else {
             log.err("PAM authentication failed: {s}", .{auth_result.description()});
 
-            conn.writer().writeByte(@boolToInt(false)) catch |err| {
+            conn.writer().writeByte(@intFromBool(false)) catch |err| {
                 log.err("failed to notify parent of failure: {s}", .{@errorName(err)});
                 os.exit(1);
             };
@@ -148,15 +148,15 @@ fn converse(
 ) callconv(.C) pam.Result {
     const ally = std.heap.raw_c_allocator;
 
-    const count = @intCast(usize, num_msg);
+    const count = @as(usize, @intCast(num_msg));
     const responses = ally.alloc(pam.Response, count) catch {
         return .buf_err;
     };
 
-    mem.set(pam.Response, responses, .{});
+    @memset(responses, .{});
     resp.* = responses.ptr;
 
-    for (msg[0..count]) |message, i| {
+    for (msg[0..count], 0..) |message, i| {
         switch (message.msg_style) {
             .prompt_echo_off => {
                 responses[i] = .{

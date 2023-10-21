@@ -95,7 +95,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             defer os.close(ev.fd);
 
             if (ev.format != .xkb_v1) {
-                log.err("unsupported keymap format {d}", .{@enumToInt(ev.format)});
+                log.err("unsupported keymap format {d}", .{@intFromEnum(ev.format)});
                 return;
             }
 
@@ -155,7 +155,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             const keysym = xkb_state.keyGetOneSym(keycode);
             if (keysym == .NoSymbol) return;
 
-            switch (@enumToInt(keysym)) {
+            switch (@intFromEnum(keysym)) {
                 xkb.Keysym.Return => {
                     // Ignore the attempt to submit the password if the locked event has not yet
                     // been received. This should be pretty much impossible to happen in practice
@@ -176,7 +176,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     const Component = xkb.State.Component;
                     const ctrl_active = xkb_state.modNameIsActive(
                         xkb.names.mod.ctrl,
-                        @intToEnum(Component, Component.mods_depressed | Component.mods_latched),
+                        @as(Component, @enumFromInt(Component.mods_depressed | Component.mods_latched)),
                     ) == 1;
 
                     if (ctrl_active) {

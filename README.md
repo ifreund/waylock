@@ -27,7 +27,7 @@ git submodule update --init
 To compile waylock first ensure that you have the following dependencies
 installed:
 
-- [zig](https://ziglang.org/download/) 0.10
+- [zig](https://ziglang.org/download/) 0.11.0
 - wayland
 - wayland-protocols
 - xkbcommon
@@ -38,7 +38,7 @@ installed:
 Then run, for example:
 
 ```
-zig build -Drelease-safe --prefix /usr install
+zig build -Doptimize=ReleaseSafe --prefix /usr install
 ```
 
 Note that PAM will only use configuration files in the system directory,

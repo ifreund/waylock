@@ -64,17 +64,17 @@ in the first place. For greatest effect, both may be used.
 - `--libc my_libc.txt`: Set system libc paths for cross compilation. Run
 `zig libc` to see a documented template for what this file should contain.
 
-- Enable compiler optimizations:
+- Enable compiler optimizations with `-Doptimize`:
 
-  - `-Drelease-safe`: Keep all assertions and runtime safety checks active.
+  - `ReleaseSafe`: Keep all assertions and runtime safety checks active.
 
-  - `-Drelease-fast`: Optimize for execution speed, disable all assertions
+  - `ReleaseFast`: Optimize for execution speed, disable all assertions
   and runtime safety checks.
 
-  - `-Drelease-small`: Optimize for binary size, disable all assertions and
+  - `ReleaseSmall`: Optimize for binary size, disable all assertions and
   runtime safety checks.
 
-Please use `-Drelease-safe` when building waylock for general use. This
+Please use `ReleaseSafe` when building waylock for general use. This
 software is not at all demanding when it comes to CPU execution speed and the
 increased safety is more than worth the binary size trade-off in my opinion.
 
@@ -107,7 +107,7 @@ install() {
 
 Build for the host architecture and libc ABI:
 ```bash
-DESTDIR=/foo/bar zig build -Drelease-safe -Dcpu=baseline \
+DESTDIR=/foo/bar zig build -Doptimize=ReleaseSafe -Dcpu=baseline \
     -Dstrip -Dpie --prefix /usr install
 ```
 
@@ -126,7 +126,7 @@ DESTDIR="/foo/bar" zig build \
     --sysroot "${XBPS_CROSS_BASE}" \
     --libc xbps_zig_libc.txt \
     -Dtarget=aarch64-linux-musl -Dcpu=baseline \
-    -Drelease-safe -Dstrip -Dpie \
+    -Doptimize=ReleaseSafe -Dstrip -Dpie \
     --prefix /usr install
 ```
 

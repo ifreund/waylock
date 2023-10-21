@@ -111,7 +111,7 @@ pub fn log(
     // waylock is small enough that we don't need scopes
     comptime assert(scope == .default);
 
-    if (@enumToInt(level) > @enumToInt(runtime_log_level)) return;
+    if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
 
     const stderr = io.getStdErr().writer();
     stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
