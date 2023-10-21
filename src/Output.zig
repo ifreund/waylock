@@ -56,10 +56,10 @@ fn lock_surface_listener(
     const lock = output.lock;
     switch (event) {
         .configure => |ev| {
-            output.width = @truncate(u31, ev.width);
-            output.height = @truncate(u31, ev.height);
+            output.width = @as(u31, @truncate(ev.width));
+            output.height = @as(u31, @truncate(ev.height));
             output.lock_surface.?.ackConfigure(ev.serial);
-            output.attach_buffer(lock.buffers[@enumToInt(lock.color)]);
+            output.attach_buffer(lock.buffers[@intFromEnum(lock.color)]);
         },
     }
 }

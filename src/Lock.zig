@@ -172,12 +172,12 @@ pub fn run(options: Options) void {
                 fatal("failed to read response from child authentication process: {s}", .{@errorName(err)});
             };
             switch (byte) {
-                @boolToInt(true) => {
+                @intFromBool(true) => {
                     lock.session_lock.?.unlockAndDestroy();
                     lock.session_lock = null;
                     lock.state = .exiting;
                 },
-                @boolToInt(false) => {
+                @intFromBool(false) => {
                     lock.set_color(.fail);
                 },
                 else => {
@@ -278,15 +278,15 @@ fn registry_listener(registry: *wl.Registry, event: wl.Registry.Event, lock: *Lo
 fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event) !void {
     switch (event) {
         .global => |ev| {
-            if (std.cstr.cmp(ev.interface, wl.Compositor.getInterface().name) == 0) {
+            if (mem.orderZ(u8, ev.interface, wl.Compositor.getInterface().name) == .eq) {
                 // Version 4 required for wl_surface.damage_buffer
                 if (ev.version < 4) {
                     fatal("advertised wl_compositor version too old, version 4 required", .{});
                 }
                 lock.compositor = try registry.bind(ev.name, wl.Compositor, 4);
-            } else if (std.cstr.cmp(ev.interface, ext.SessionLockManagerV1.getInterface().name) == 0) {
+            } else if (mem.orderZ(u8, ev.interface, ext.SessionLockManagerV1.getInterface().name) == .eq) {
                 lock.session_lock_manager = try registry.bind(ev.name, ext.SessionLockManagerV1, 1);
-            } else if (std.cstr.cmp(ev.interface, wl.Output.getInterface().name) == 0) {
+            } else if (mem.orderZ(u8, ev.interface, wl.Output.getInterface().name) == .eq) {
                 // Version 3 required for wl_output.release
                 if (ev.version < 3) {
                     fatal("advertised wl_output version too old, version 3 required", .{});
@@ -308,7 +308,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                     .initializing, .exiting => {},
                     .locking, .locked => try node.data.create_surface(),
                 }
-            } else if (std.cstr.cmp(ev.interface, wl.Seat.getInterface().name) == 0) {
+            } else if (mem.orderZ(u8, ev.interface, wl.Seat.getInterface().name) == .eq) {
                 // Version 5 required for wl_seat.release
                 if (ev.version < 5) {
                     fatal("advertised wl_seat version too old, version 5 required.", .{});
@@ -321,9 +321,9 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
 
                 node.data.init(lock, ev.name, wl_seat);
                 lock.seats.prepend(node);
-            } else if (std.cstr.cmp(ev.interface, wp.Viewporter.getInterface().name) == 0) {
+            } else if (mem.orderZ(u8, ev.interface, wp.Viewporter.getInterface().name) == .eq) {
                 lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
-            } else if (std.cstr.cmp(ev.interface, wp.SinglePixelBufferManagerV1.getInterface().name) == 0) {
+            } else if (mem.orderZ(u8, ev.interface, wp.SinglePixelBufferManagerV1.getInterface().name) == .eq) {
                 lock.buffer_manager = try registry.bind(ev.name, wp.SinglePixelBufferManagerV1, 1);
             }
         },
@@ -389,7 +389,7 @@ pub fn submit_password(lock: *Lock) void {
 fn send_password_to_auth(lock: *Lock) !void {
     defer lock.password.clear();
     const writer = lock.auth_connection.writer();
-    try writer.writeIntNative(u32, @intCast(u32, lock.password.buffer.len));
+    try writer.writeIntNative(u32, @as(u32, @intCast(lock.password.buffer.len)));
     try writer.writeAll(lock.password.buffer);
 }
 
@@ -400,7 +400,7 @@ pub fn set_color(lock: *Lock, color: Color) void {
 
     var it = lock.outputs.first;
     while (it) |node| : (it = node.next) {
-        node.data.attach_buffer(lock.buffers[@enumToInt(lock.color)]);
+        node.data.attach_buffer(lock.buffers[@intFromEnum(lock.color)]);
     }
 }
 
@@ -424,7 +424,7 @@ fn create_buffers(
     var buffers: [3]*wl.Buffer = undefined;
     for ([_]Color{ .init, .input, .fail }) |color| {
         const rgb = options.rgb(color);
-        buffers[@enumToInt(color)] = try buffer_manager.createU32RgbaBuffer(
+        buffers[@intFromEnum(color)] = try buffer_manager.createU32RgbaBuffer(
             @as(u32, (rgb >> 16) & 0xff) * (0xffff_ffff / 0xff),
             @as(u32, (rgb >> 8) & 0xff) * (0xffff_ffff / 0xff),
             @as(u32, (rgb >> 0) & 0xff) * (0xffff_ffff / 0xff),
