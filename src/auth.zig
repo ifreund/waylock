@@ -148,18 +148,17 @@ fn converse(
 ) callconv(.C) pam.Result {
     const ally = std.heap.raw_c_allocator;
 
-    const count = @as(usize, @intCast(num_msg));
-    const responses = ally.alloc(pam.Response, count) catch {
+    const responses = ally.alloc(pam.Response, @intCast(num_msg)) catch {
         return .buf_err;
     };
 
     @memset(responses, .{});
     resp.* = responses.ptr;
 
-    for (msg[0..count], 0..) |message, i| {
+    for (msg, responses) |message, *response| {
         switch (message.msg_style) {
             .prompt_echo_off => {
-                responses[i] = .{
+                response.* = .{
                     .resp = ally.dupeZ(u8, password.buffer) catch {
                         return .buf_err;
                     },

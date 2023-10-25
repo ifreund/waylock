@@ -176,7 +176,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     const Component = xkb.State.Component;
                     const ctrl_active = xkb_state.modNameIsActive(
                         xkb.names.mod.ctrl,
-                        @as(Component, @enumFromInt(Component.mods_depressed | Component.mods_latched)),
+                        @enumFromInt(Component.mods_depressed | Component.mods_latched),
                     ) == 1;
 
                     if (ctrl_active) {

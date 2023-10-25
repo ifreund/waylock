@@ -1,7 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const Build = std.Build;
-const Step = std.Build.Step;
 const fs = std.fs;
 const mem = std.mem;
 
@@ -33,21 +32,18 @@ pub fn build(b: *Build) !void {
     };
 
     if (man_pages) {
-        inline for (.{"waylock"}) |page| {
-            // Taken from river. The rationale is of the following:
-            // Workaround for https://github.com/ziglang/zig/issues/16369
-            // Even passing a buffer to std.Build.Step.Run appears to be racy and occasionally deadlocks.
-            const scdoc = b.addSystemCommand(&.{ "sh", "-c", "scdoc < doc/" ++ page ++ ".1.scd" });
+        // Workaround for https://github.com/ziglang/zig/issues/16369
+        // Even passing a buffer to std.Build.Step.Run appears to be racy and occasionally deadlocks.
+        const scdoc = b.addSystemCommand(&.{ "sh", "-c", "scdoc < doc/waylock.1.scd" });
+        // This makes the caching work for the Workaround, and the extra argument is ignored by /bin/sh.
+        scdoc.addFileArg(.{ .path = "doc/waylock.1.scd" });
 
-            scdoc.addFileArg(.{ .path = "doc/" ++ page ++ ".1.scd" });
-
-            const stdout = scdoc.captureStdOut();
-            b.getInstallStep().dependOn(&b.addInstallFile(stdout, "share/man/man1/" ++ page ++ ".1").step);
-        }
+        const stdout = scdoc.captureStdOut();
+        b.getInstallStep().dependOn(&b.addInstallFile(stdout, "share/man/man1/waylock.1").step);
     }
 
-    const install_prefix = try std.fs.path.resolve(b.allocator, &[_][]const u8{b.install_prefix});
-    if (std.mem.eql(u8, install_prefix, "/usr")) {
+    const install_prefix = try std.fs.path.resolve(b.allocator, &.{b.install_prefix});
+    if (mem.eql(u8, install_prefix, "/usr")) {
         b.installFile("pam.d/waylock", "../etc/pam.d/waylock");
     } else {
         b.installFile("pam.d/waylock", "etc/pam.d/waylock");
@@ -71,10 +67,7 @@ pub fn build(b: *Build) !void {
             assert(commit_hash[0] == 'g');
 
             // Follow semantic versioning, e.g. 0.2.0-dev.42+d1cf95b
-            break :blk try std.fmt.allocPrintZ(b.allocator, version ++ ".{s}+{s}", .{
-                commit_count,
-                commit_hash[1..],
-            });
+            break :blk b.fmt(version ++ ".{s}+{s}", .{ commit_count, commit_hash[1..] });
         } else {
             break :blk version;
         }
@@ -95,6 +88,11 @@ pub fn build(b: *Build) !void {
     scanner.generate("wp_viewporter", 1);
     scanner.generate("wp_single_pixel_buffer_manager_v1", 1);
 
+    const wayland = b.createModule(.{ .source_file = scanner.result });
+    const xkbcommon = b.createModule(
+        .{ .source_file = .{ .path = "deps/zig-xkbcommon/src/xkbcommon.zig" } },
+    );
+
     const waylock = b.addExecutable(.{
         .name = "waylock",
         .root_source_file = .{ .path = "src/main.zig" },
@@ -103,44 +101,19 @@ pub fn build(b: *Build) !void {
     });
     waylock.addOptions("build_options", options);
 
-    const wayland = b.createModule(.{ .source_file = scanner.result });
-    waylock.addModule("wayland", wayland);
-    const xkbcommon = b.createModule(.{ .source_file = .{ .path = "deps/zig-xkbcommon/src/xkbcommon.zig" } });
-    waylock.addModule("xkbcommon", xkbcommon);
     waylock.linkLibC();
-    waylock.linkSystemLibrary("wayland-client");
-    waylock.linkSystemLibrary("xkbcommon");
     waylock.linkSystemLibrary("pam");
 
+    waylock.addModule("wayland", wayland);
+    waylock.linkSystemLibrary("wayland-client");
+
+    waylock.addModule("xkbcommon", xkbcommon);
+    waylock.linkSystemLibrary("xkbcommon");
+
+    // TODO: remove when zig issue #131 is implemented
     scanner.addCSource(waylock);
 
     waylock.strip = strip;
     waylock.pie = pie;
     b.installArtifact(waylock);
 }
-
-const ScdocStep = struct {
-    builder: *Build,
-    step: *Step,
-
-    fn create(builder: *Build) !*ScdocStep {
-        const self = try builder.allocator.create(ScdocStep);
-        self.* = .{
-            .builder = builder,
-            .step = Step.init(.custom, "Generate man pages", builder.allocator, make),
-        };
-        return self;
-    }
-
-    fn make(step: *Step) !void {
-        const self = @fieldParentPtr(ScdocStep, "step", step);
-        _ = try self.builder.exec(
-            &[_][]const u8{ "sh", "-c", "scdoc < doc/waylock.1.scd > doc/waylock.1" },
-        );
-    }
-
-    fn install(self: *ScdocStep) !void {
-        self.builder.getInstallStep().dependOn(&self.step);
-        self.builder.installFile("doc/waylock.1", "share/man/man1/waylock.1");
-    }
-};
