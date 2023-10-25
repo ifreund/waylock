@@ -1,89 +1,108 @@
+// Zero allocation argument parsing for unix-like systems.
+// Released under the Zero Clause BSD (0BSD) license:
+//
+// Copyright 2023 Isaac Freund
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 const std = @import("std");
 const mem = std.mem;
 
 pub const Flag = struct {
-    name: [*:0]const u8,
+    name: []const u8,
     kind: enum { boolean, arg },
 };
 
-pub fn ParseResult(comptime flags: []const Flag) type {
+pub fn parser(comptime Arg: type, comptime flags: []const Flag) type {
+    switch (Arg) {
+        // TODO consider allowing []const u8
+        [:0]const u8, [*:0]const u8 => {}, // ok
+        else => @compileError("invalid argument type: " ++ @typeName(Arg)),
+    }
     return struct {
-        const Self = @This();
+        pub const Result = struct {
+            /// Remaining args after the recognized flags
+            args: []const Arg,
+            /// Data obtained from parsed flags
+            flags: Flags,
 
-        const FlagData = struct {
-            name: [*:0]const u8,
-            value: union {
-                boolean: bool,
-                arg: ?[*:0]const u8,
-            },
+            pub const Flags = flags_type: {
+                var fields: []const std.builtin.Type.StructField = &.{};
+                inline for (flags) |flag| {
+                    const field: std.builtin.Type.StructField = switch (flag.kind) {
+                        .boolean => .{
+                            .name = flag.name,
+                            .type = bool,
+                            .default_value = &false,
+                            .is_comptime = false,
+                            .alignment = @alignOf(bool),
+                        },
+                        .arg => .{
+                            .name = flag.name,
+                            .type = ?[:0]const u8,
+                            .default_value = &@as(?[:0]const u8, null),
+                            .is_comptime = false,
+                            .alignment = @alignOf(?[:0]const u8),
+                        },
+                    };
+                    fields = fields ++ [_]std.builtin.Type.StructField{field};
+                }
+                break :flags_type @Type(.{ .Struct = .{
+                    .layout = .Auto,
+                    .fields = fields,
+                    .decls = &.{},
+                    .is_tuple = false,
+                } });
+            };
         };
 
-        /// Remaining args after the recognized flags
-        args: [][*:0]const u8,
-        /// Data obtained from parsed flags
-        flag_data: [flags.len]FlagData = blk: {
-            // Init all flags to false/null
-            var flag_data: [flags.len]FlagData = undefined;
-            inline for (flags, 0..) |flag, i| {
-                flag_data[i] = switch (flag.kind) {
-                    .boolean => .{
-                        .name = flag.name,
-                        .value = .{ .boolean = false },
-                    },
-                    .arg => .{
-                        .name = flag.name,
-                        .value = .{ .arg = null },
-                    },
+        pub fn parse(args: []const Arg) !Result {
+            var result_flags: Result.Flags = .{};
+
+            var i: usize = 0;
+            outer: while (i < args.len) : (i += 1) {
+                const arg = switch (Arg) {
+                    [*:0]const u8 => mem.sliceTo(args[i], 0),
+                    [:0]const u8 => args[i],
+                    else => unreachable,
                 };
-            }
-            break :blk flag_data;
-        },
-
-        pub fn boolFlag(self: Self, flag_name: [*:0]const u8) bool {
-            for (self.flag_data) |flag_data| {
-                if (mem.orderZ(u8, flag_data.name, flag_name) == .eq) return flag_data.value.boolean;
-            }
-            unreachable; // Invalid flag_name
-        }
-
-        pub fn argFlag(self: Self, flag_name: [*:0]const u8) ?[:0]const u8 {
-            for (self.flag_data) |flag_data| {
-                if (mem.orderZ(u8, flag_data.name, flag_name) == .eq) {
-                    return std.mem.span(flag_data.value.arg);
+                inline for (flags) |flag| {
+                    if (mem.eql(u8, "-" ++ flag.name, arg)) {
+                        switch (flag.kind) {
+                            .boolean => @field(result_flags, flag.name) = true,
+                            .arg => {
+                                i += 1;
+                                if (i == args.len) {
+                                    std.log.err("option '-" ++ flag.name ++
+                                        "' requires an argument but none was provided!", .{});
+                                    return error.MissingFlagArgument;
+                                }
+                                @field(result_flags, flag.name) = switch (Arg) {
+                                    [*:0]const u8 => mem.sliceTo(args[i], 0),
+                                    [:0]const u8 => args[i],
+                                    else => unreachable,
+                                };
+                            },
+                        }
+                        continue :outer;
+                    }
                 }
+                break;
             }
-            unreachable; // Invalid flag_name
+
+            return Result{
+                .args = args[i..],
+                .flags = result_flags,
+            };
         }
     };
-}
-
-pub fn parse(args: [][*:0]const u8, comptime flags: []const Flag) !ParseResult(flags) {
-    var ret: ParseResult(flags) = .{ .args = undefined };
-
-    var arg_idx: usize = 0;
-    while (arg_idx < args.len) : (arg_idx += 1) {
-        var parsed_flag = false;
-        inline for (flags, 0..) |flag, flag_idx| {
-            if (mem.orderZ(u8, flag.name, args[arg_idx]) == .eq) {
-                switch (flag.kind) {
-                    .boolean => ret.flag_data[flag_idx].value.boolean = true,
-                    .arg => {
-                        arg_idx += 1;
-                        if (arg_idx == args.len) {
-                            std.log.err("option '" ++ flag.name ++
-                                "' requires an argument but none was provided!", .{});
-                            return error.MissingFlagArgument;
-                        }
-                        ret.flag_data[flag_idx].value.arg = args[arg_idx];
-                    },
-                }
-                parsed_flag = true;
-            }
-        }
-        if (!parsed_flag) break;
-    }
-
-    ret.args = args[arg_idx..];
-
-    return ret;
 }

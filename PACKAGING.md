@@ -64,17 +64,18 @@ in the first place. For greatest effect, both may be used.
 - `--libc my_libc.txt`: Set system libc paths for cross compilation. Run
 `zig libc` to see a documented template for what this file should contain.
 
-- Enable compiler optimizations with `-Doptimize`:
+- Enable compiler optimizations:
 
-  - `ReleaseSafe`: Keep all assertions and runtime safety checks active.
+  - `-Doptimize=ReleaseSafe`: Optimize for execution speed,
+  keep all assertions and runtime safety checks active.
 
-  - `ReleaseFast`: Optimize for execution speed, disable all assertions
-  and runtime safety checks.
+  - `-Doptimize=ReleaseFast`: Optimize for execution speed,
+  disable all assertions and runtime safety checks.
 
-  - `ReleaseSmall`: Optimize for binary size, disable all assertions and
-  runtime safety checks.
+  - `-Doptimize=ReleaseSmall`: Optimize for binary size,
+  disable all assertions and runtime safety checks.
 
-Please use `ReleaseSafe` when building waylock for general use. This
+Please use `-Doptimize=ReleaseSafe` when building waylock for general
 software is not at all demanding when it comes to CPU execution speed and the
 increased safety is more than worth the binary size trade-off in my opinion.
 

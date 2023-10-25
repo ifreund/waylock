@@ -26,23 +26,19 @@ const usage =
 ;
 
 pub fn main() void {
-    // TODO clean up these two lines after zig 0.10
-    const argv = os.argv;
-    const args = if (argv.len != 0) argv[1..] else @as([][*:0]const u8, &[_][*:0]const u8{});
-
-    const result = flags.parse(args, &[_]flags.Flag{
-        .{ .name = "-h", .kind = .boolean },
-        .{ .name = "-version", .kind = .boolean },
-        .{ .name = "-log-level", .kind = .arg },
-        .{ .name = "-fork-on-lock", .kind = .boolean },
-        .{ .name = "-init-color", .kind = .arg },
-        .{ .name = "-input-color", .kind = .arg },
-        .{ .name = "-fail-color", .kind = .arg },
-    }) catch {
+    const result = flags.parser([*:0]const u8, &.{
+        .{ .name = "h", .kind = .boolean },
+        .{ .name = "version", .kind = .boolean },
+        .{ .name = "log-level", .kind = .arg },
+        .{ .name = "fork-on-lock", .kind = .boolean },
+        .{ .name = "init-color", .kind = .arg },
+        .{ .name = "input-color", .kind = .arg },
+        .{ .name = "fail-color", .kind = .arg },
+    }).parse(os.argv[1..]) catch {
         io.getStdErr().writeAll(usage) catch {};
         os.exit(1);
     };
-    if (result.boolFlag("-h")) {
+    if (result.flags.h) {
         io.getStdOut().writeAll(usage) catch os.exit(1);
         os.exit(0);
     }
@@ -52,11 +48,11 @@ pub fn main() void {
         os.exit(1);
     }
 
-    if (result.boolFlag("-version")) {
+    if (result.flags.version) {
         io.getStdOut().writeAll(build_options.version ++ "\n") catch os.exit(1);
         os.exit(0);
     }
-    if (result.argFlag("-log-level")) |level| {
+    if (result.flags.@"log-level") |level| {
         if (mem.eql(u8, level, "error")) {
             runtime_log_level = .err;
         } else if (mem.eql(u8, level, "warning")) {
@@ -72,11 +68,11 @@ pub fn main() void {
     }
 
     var options: Lock.Options = .{
-        .fork_on_lock = result.boolFlag("-fork-on-lock"),
+        .fork_on_lock = result.flags.@"fork-on-lock",
     };
-    if (result.argFlag("-init-color")) |raw| options.init_color = parse_color(raw);
-    if (result.argFlag("-input-color")) |raw| options.input_color = parse_color(raw);
-    if (result.argFlag("-fail-color")) |raw| options.fail_color = parse_color(raw);
+    if (result.flags.@"init-color") |raw| options.init_color = parse_color(raw);
+    if (result.flags.@"input-color") |raw| options.input_color = parse_color(raw);
+    if (result.flags.@"fail-color") |raw| options.fail_color = parse_color(raw);
 
     Lock.run(options);
 }
