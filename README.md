@@ -62,6 +62,11 @@ To unlock the session, type your password and press `Enter`. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color
 will change to the `-fail-color` and you may try again.
 
+In order to automatically run waylock after a certain amount of time with no
+input or before sleep, the [swayidle](https://github.com/swaywm/swayidle)
+utility or a similar program may be used. See the `swayidle(1)` man page
+for details.
+
 ## Licensing
 
 Waylock is released under the ISC License.
