@@ -31,6 +31,7 @@ pub fn main() void {
         .{ .name = "version", .kind = .boolean },
         .{ .name = "log-level", .kind = .arg },
         .{ .name = "fork-on-lock", .kind = .boolean },
+        .{ .name = "ignore-empty-password", .kind = .boolean },
         .{ .name = "init-color", .kind = .arg },
         .{ .name = "input-color", .kind = .arg },
         .{ .name = "fail-color", .kind = .arg },
@@ -69,6 +70,7 @@ pub fn main() void {
 
     var options: Lock.Options = .{
         .fork_on_lock = result.flags.@"fork-on-lock",
+        .ignore_empty_password = result.flags.@"ignore-empty-password",
     };
     if (result.flags.@"init-color") |raw| options.init_color = parse_color(raw);
     if (result.flags.@"input-color") |raw| options.input_color = parse_color(raw);

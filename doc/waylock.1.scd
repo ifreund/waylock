@@ -35,6 +35,11 @@ unlocked.
 	session before suspend. With this option waylock will exit once the
 	session has been locked and it is safe to suspend.
 
+*-ignore-empty-password*
+	Do not submit empty passwords to PAM for validation when the Enter
+	key is pressed. Instead, do nothing. This may be useful if, for
+	example, the Enter key is used to wake the computer from sleep.
+
 *-init-color* _0xRRGGBB_
 	Set the initial color. (default: 0x002b36)
 
