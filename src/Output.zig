@@ -40,8 +40,8 @@ pub fn create_surface(output: *Output) !void {
 pub fn destroy(output: *Output) void {
     output.wl_output.release();
     if (output.viewport) |viewport| viewport.destroy();
-    if (output.surface) |surface| surface.destroy();
     if (output.lock_surface) |lock_surface| lock_surface.destroy();
+    if (output.surface) |surface| surface.destroy();
 
     const node = @fieldParentPtr(std.SinglyLinkedList(Output).Node, "data", output);
     output.lock.outputs.remove(node);
