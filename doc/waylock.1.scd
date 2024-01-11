@@ -1,4 +1,4 @@
-WAYLOCK(1) "github.com/ifreund/waylock" "General Commands Manual"
+WAYLOCK(1) "https://codeberg.org/ifreund/waylock" "General Commands Manual"
 
 # NAME
 
@@ -67,7 +67,7 @@ may be used. See the *swayidle*(1) man page for details.
 
 Maintained by Isaac Freund <mail@isaacfreund.com> who is assisted by open
 source contributors. For more information about waylock's development, see
-https://github.com/ifreund/waylock.
+https://codeberg.org/ifreund/waylock.
 
 # SEE ALSO
 
