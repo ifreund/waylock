@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const io = std.io;
 const mem = std.mem;
 const os = std.os;
+const log = std.log;
 
 const build_options = @import("build_options");
 const builtin = @import("builtin");
@@ -44,7 +45,7 @@ pub fn main() void {
         os.exit(0);
     }
     if (result.args.len != 0) {
-        std.log.err("unknown option '{s}'", .{result.args[0]});
+        log.err("unknown option '{s}'", .{result.args[0]});
         io.getStdErr().writeAll(usage) catch {};
         os.exit(1);
     }
@@ -63,7 +64,7 @@ pub fn main() void {
         } else if (mem.eql(u8, level, "debug")) {
             runtime_log_level = .debug;
         } else {
-            std.log.err("invalid log level '{s}'", .{level});
+            log.err("invalid log level '{s}'", .{level});
             os.exit(1);
         }
     }
@@ -87,30 +88,32 @@ fn parse_color(raw: []const u8) u24 {
 }
 
 fn fatal_bad_color(raw: []const u8) noreturn {
-    std.log.err("invalid color '{s}', expected format '0xRRGGBB'", .{raw});
+    log.err("invalid color '{s}', expected format '0xRRGGBB'", .{raw});
     os.exit(1);
 }
 
-/// Tell std.log to leave all log level filtering to us.
-pub const log_level: std.log.Level = .debug;
-
 /// Set the default log level based on the build mode.
-var runtime_log_level: std.log.Level = switch (builtin.mode) {
+var runtime_log_level: log.Level = switch (builtin.mode) {
     .Debug => .debug,
     .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .err,
 };
 
-pub fn log(
-    comptime level: std.log.Level,
-    comptime scope: @TypeOf(.EnumLiteral),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    // waylock is small enough that we don't need scopes
-    comptime assert(scope == .default);
+pub const std_options = struct {
+    /// Tell std.log to leave all log level filtering to us.
+    pub const log_level: log.Level = .debug;
 
-    if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
+    pub fn logFn(
+        comptime level: log.Level,
+        comptime scope: @TypeOf(.EnumLiteral),
+        comptime format: []const u8,
+        args: anytype,
+    ) void {
+        // waylock is small enough that we don't need scopes
+        comptime assert(scope == .default);
 
-    const stderr = io.getStdErr().writer();
-    stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
-}
+        if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
+
+        const stderr = io.getStdErr().writer();
+        stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
+    }
+};
