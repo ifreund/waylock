@@ -51,9 +51,10 @@ unlocked.
 
 # USAGE
 
-Run the waylock executable to lock the session. All monitors will be
-blanked with the *-init-color*. Typing causes the color to change to the
-*-input-color*, to clear what you've typed press Esc or Ctrl-U.
+Run the waylock executable to lock the session. All monitors will be blanked
+with the *-init-color*. Typing causes the color to change to the
+*-input-color*. Esc or Ctrl-U clears all current input, while backspace
+deletes the last UTF-8 codepoint.
 
 To unlock the session, type your password and press Enter. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color

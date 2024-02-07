@@ -183,8 +183,16 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                         return;
                     }
                 },
+                xkb.Keysym.BackSpace => {
+                    lock.password.shrink();
+                    if (lock.password.buffer.len == 0) {
+                        lock.set_color(.init);
+                    }
+                    return;
+                },
                 else => {},
             }
+
             // If key was not handled, write to password buffer
             const delta = xkb_state.keyGetUtf8(keycode, lock.password.unused_slice());
             if (delta > 0) {

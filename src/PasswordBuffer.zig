@@ -44,6 +44,23 @@ pub fn grow(password: *PasswordBuffer, delta: usize) error{Overflow}!void {
     password.buffer.len += delta;
 }
 
+pub fn shrink(password: *PasswordBuffer) void {
+    if (password.buffer.len == 0) {
+        return;
+    }
+    for (0..@min(password.buffer.len, 4)) |i| {
+        const expect_len = i + 1;
+        const byte = password.buffer[password.buffer.len - expect_len];
+        const byte_sequence_len = std.unicode.utf8ByteSequenceLength(byte) catch {
+            continue;
+        };
+        std.debug.assert(expect_len == byte_sequence_len);
+        password.buffer.len -= expect_len;
+        return;
+    }
+    unreachable;
+}
+
 pub fn clear(password: *PasswordBuffer) void {
     std.crypto.utils.secureZero(u8, password.buffer);
     password.buffer.len = 0;
