@@ -6,10 +6,11 @@ more robust than previous client-side Wayland screen locking approaches.
 Importantly, the screenlocker crashing does not cause the session to be
 unlocked.
 
-In addition, waylock has been entirely rewritten since version 0.3.5 for
-security and simplicity. It now benefits from everything I've learned
-about Wayland and programming in general over the past few years working on
-[river](https://github.com/riverwm/river).
+The main repository is on [codeberg](https://codeberg.org/ifreund/waylock),
+this is where the issue tracker may be found and where contributions are accepted.
+
+Read-only mirrors exist on [sourcehut](https://git.sr.ht/~ifreund/waylock)
+and [github](https://github.com/ifreund/waylock).
 
 ## Building
 
