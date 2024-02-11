@@ -184,7 +184,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     }
                 },
                 xkb.Keysym.BackSpace => {
-                    lock.password.shrink();
+                    lock.password.pop_codepoint();
                     if (lock.password.buffer.len == 0) {
                         lock.set_color(.init);
                     }

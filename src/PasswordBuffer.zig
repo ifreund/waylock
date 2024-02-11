@@ -2,6 +2,7 @@ const PasswordBuffer = @This();
 
 const std = @import("std");
 const builtin = @import("builtin");
+const assert = std.debug.assert;
 const log = std.log;
 const mem = std.mem;
 const os = std.os;
@@ -44,20 +45,24 @@ pub fn grow(password: *PasswordBuffer, delta: usize) error{Overflow}!void {
     password.buffer.len += delta;
 }
 
-pub fn shrink(password: *PasswordBuffer) void {
+pub fn pop_codepoint(password: *PasswordBuffer) void {
     if (password.buffer.len == 0) {
         return;
     }
-    for (0..@min(password.buffer.len, 4)) |i| {
-        const expect_len = i + 1;
-        const byte = password.buffer[password.buffer.len - expect_len];
-        const byte_sequence_len = std.unicode.utf8ByteSequenceLength(byte) catch {
-            continue;
-        };
-        std.debug.assert(expect_len == byte_sequence_len);
-        password.buffer.len -= expect_len;
+
+    // Unicode codepoints may be encoded in 1-4 bytes.
+    // Check for a 1 byte final codepoint, then a 2 byte, etc.
+    for (1..@min(password.buffer.len, 4) + 1) |check_len| {
+        const codepoint_bytes = password.buffer[password.buffer.len - check_len ..];
+        const actual_len = std.unicode.utf8ByteSequenceLength(codepoint_bytes[0]) catch continue;
+
+        assert(check_len == actual_len);
+        std.crypto.utils.secureZero(u8, codepoint_bytes);
+        password.buffer.len -= actual_len;
         return;
     }
+
+    // Only valid UTF-8 is written to the buffer.
     unreachable;
 }
 
