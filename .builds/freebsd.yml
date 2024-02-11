@@ -7,8 +7,7 @@ packages:
   - wget
   - x11/libxkbcommon
 sources:
-  - https://github.com/ifreund/waylock
-  - https://gitlab.freedesktop.org/wlroots/wlroots
+  - https://codeberg.org/ifreund/waylock
 tasks:
   - install_deps: |
       wget -nv https://ziglang.org/download/0.11.0/zig-freebsd-x86_64-0.11.0.tar.xz
