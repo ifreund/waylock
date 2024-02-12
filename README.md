@@ -7,7 +7,7 @@ Importantly, the screenlocker crashing does not cause the session to be
 unlocked.
 
 The main repository is on [codeberg](https://codeberg.org/ifreund/waylock),
-this is where the issue tracker may be found and where contributions are accepted.
+which is where the issue tracker may be found and where contributions are accepted.
 
 Read-only mirrors exist on [sourcehut](https://git.sr.ht/~ifreund/waylock)
 and [github](https://github.com/ifreund/waylock).
