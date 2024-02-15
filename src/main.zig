@@ -14,15 +14,16 @@ const flags = @import("flags.zig");
 const usage =
     \\usage: waylock [options]
     \\
-    \\  -h                     Print this help message and exit.
-    \\  -version               Print the version number and exit.
-    \\  -log-level <level>     Set the log level to error, warning, info, or debug.
+    \\  -h                      Print this help message and exit.
+    \\  -version                Print the version number and exit.
+    \\  -log-level <level>      Set the log level to error, warning, info, or debug.
     \\
-    \\  -fork-on-lock          Fork to the background after locking.
+    \\  -fork-on-lock           Fork to the background after locking.
+    \\  -ignore-empty-password  Do not validate an empty password.
     \\
-    \\  -init-color 0xRRGGBB   Set the initial color.
-    \\  -input-color 0xRRGGBB  Set the color used after input.
-    \\  -fail-color 0xRRGGBB   Set the color used on authentication failure.
+    \\  -init-color 0xRRGGBB    Set the initial color.
+    \\  -input-color 0xRRGGBB   Set the color used after input.
+    \\  -fail-color 0xRRGGBB    Set the color used on authentication failure.
     \\
 ;
 
