@@ -19,6 +19,7 @@ const usage =
     \\  -log-level <level>      Set the log level to error, warning, info, or debug.
     \\
     \\  -fork-on-lock           Fork to the background after locking.
+    \\  -ready-fd <fd>          Write a newline to fd after locking.
     \\  -ignore-empty-password  Do not validate an empty password.
     \\
     \\  -init-color 0xRRGGBB    Set the initial color.
@@ -33,6 +34,7 @@ pub fn main() void {
         .{ .name = "version", .kind = .boolean },
         .{ .name = "log-level", .kind = .arg },
         .{ .name = "fork-on-lock", .kind = .boolean },
+        .{ .name = "ready-fd", .kind = .arg },
         .{ .name = "ignore-empty-password", .kind = .boolean },
         .{ .name = "init-color", .kind = .arg },
         .{ .name = "input-color", .kind = .arg },
@@ -74,6 +76,12 @@ pub fn main() void {
         .fork_on_lock = result.flags.@"fork-on-lock",
         .ignore_empty_password = result.flags.@"ignore-empty-password",
     };
+    if (result.flags.@"ready-fd") |raw| {
+        options.ready_fd = std.fmt.parseInt(os.fd_t, raw, 10) catch {
+            log.err("invalid file descriptor '{s}'", .{raw});
+            os.exit(1);
+        };
+    }
     if (result.flags.@"init-color") |raw| options.init_color = parse_color(raw);
     if (result.flags.@"input-color") |raw| options.input_color = parse_color(raw);
     if (result.flags.@"fail-color") |raw| options.fail_color = parse_color(raw);

@@ -35,6 +35,11 @@ unlocked.
 	session before suspend. With this option waylock will exit once the
 	session has been locked and it is safe to suspend.
 
+*-ready-fd* _fd_
+	Write a newline to file descriptor _fd_ (a number) after locking and
+	close the _fd_. This is useful if a fork-less lock notification is needed;
+	for example, for integration with a service manager.
+
 *-ignore-empty-password*
 	Do not submit empty passwords to PAM for validation when the Enter
 	key is pressed. Instead, do nothing. This may be useful if, for
