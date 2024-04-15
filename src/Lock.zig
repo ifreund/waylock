@@ -30,7 +30,7 @@ pub const Color = enum {
 
 pub const Options = struct {
     fork_on_lock: bool,
-    ready_fd: os.fd_t = -1,
+    ready_fd: ?os.fd_t = null,
     ignore_empty_password: bool,
     init_color: u24 = 0x002b36,
     input_color: u24 = 0x6c71c4,
@@ -61,7 +61,7 @@ state: enum {
 color: Color = .init,
 
 fork_on_lock: bool,
-ready_fd: os.fd_t,
+ready_fd: ?os.fd_t,
 ignore_empty_password: bool,
 
 pollfds: [2]os.pollfd,
@@ -361,14 +361,14 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
         .locked => {
             assert(lock.state == .locking);
             lock.state = .locked;
-            if (lock.ready_fd >= 0) {
-                const file = std.fs.File{ .handle = lock.ready_fd };
+            if (lock.ready_fd) |ready_fd| {
+                const file = std.fs.File{ .handle = ready_fd };
                 file.writeAll("\n") catch |err| {
                     log.err("failed to send readiness notification: {s}", .{@errorName(err)});
                     os.exit(1);
                 };
                 file.close();
-                lock.ready_fd = -1;
+                lock.ready_fd = null;
             }
             if (lock.fork_on_lock) {
                 fork_to_background();
