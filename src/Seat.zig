@@ -154,7 +154,9 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
 
             const lock = seat.lock;
             switch (@intFromEnum(keysym)) {
-                xkb.Keysym.Return => {
+                xkb.Keysym.Return,
+                xkb.Keysym.KP_Enter,
+                => {
                     // Ignore the attempt to submit the password if the locked event has not yet
                     // been received. This should be pretty much impossible to happen in practice
                     // as the compositor should send the locked event in a matter of milliseconds.
