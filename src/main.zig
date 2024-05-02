@@ -2,7 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const io = std.io;
 const mem = std.mem;
-const os = std.os;
+const posix = std.posix;
 const log = std.log;
 
 const build_options = @import("build_options");
@@ -39,23 +39,23 @@ pub fn main() void {
         .{ .name = "init-color", .kind = .arg },
         .{ .name = "input-color", .kind = .arg },
         .{ .name = "fail-color", .kind = .arg },
-    }).parse(os.argv[1..]) catch {
+    }).parse(std.os.argv[1..]) catch {
         io.getStdErr().writeAll(usage) catch {};
-        os.exit(1);
+        posix.exit(1);
     };
     if (result.flags.h) {
-        io.getStdOut().writeAll(usage) catch os.exit(1);
-        os.exit(0);
+        io.getStdOut().writeAll(usage) catch posix.exit(1);
+        posix.exit(0);
     }
     if (result.args.len != 0) {
         log.err("unknown option '{s}'", .{result.args[0]});
         io.getStdErr().writeAll(usage) catch {};
-        os.exit(1);
+        posix.exit(1);
     }
 
     if (result.flags.version) {
-        io.getStdOut().writeAll(build_options.version ++ "\n") catch os.exit(1);
-        os.exit(0);
+        io.getStdOut().writeAll(build_options.version ++ "\n") catch posix.exit(1);
+        posix.exit(0);
     }
     if (result.flags.@"log-level") |level| {
         if (mem.eql(u8, level, "error")) {
@@ -68,7 +68,7 @@ pub fn main() void {
             runtime_log_level = .debug;
         } else {
             log.err("invalid log level '{s}'", .{level});
-            os.exit(1);
+            posix.exit(1);
         }
     }
 
@@ -77,9 +77,9 @@ pub fn main() void {
         .ignore_empty_password = result.flags.@"ignore-empty-password",
     };
     if (result.flags.@"ready-fd") |raw| {
-        options.ready_fd = std.fmt.parseInt(os.fd_t, raw, 10) catch {
+        options.ready_fd = std.fmt.parseInt(posix.fd_t, raw, 10) catch {
             log.err("invalid file descriptor '{s}'", .{raw});
-            os.exit(1);
+            posix.exit(1);
         };
     }
     if (result.flags.@"init-color") |raw| options.init_color = parse_color(raw);
@@ -98,7 +98,7 @@ fn parse_color(raw: []const u8) u24 {
 
 fn fatal_bad_color(raw: []const u8) noreturn {
     log.err("invalid color '{s}', expected format '0xRRGGBB'", .{raw});
-    os.exit(1);
+    posix.exit(1);
 }
 
 /// Set the default log level based on the build mode.
@@ -107,22 +107,23 @@ var runtime_log_level: log.Level = switch (builtin.mode) {
     .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .err,
 };
 
-pub const std_options = struct {
-    /// Tell std.log to leave all log level filtering to us.
-    pub const log_level: log.Level = .debug;
-
-    pub fn logFn(
-        comptime level: log.Level,
-        comptime scope: @TypeOf(.EnumLiteral),
-        comptime format: []const u8,
-        args: anytype,
-    ) void {
-        // waylock is small enough that we don't need scopes
-        comptime assert(scope == .default);
-
-        if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
-
-        const stderr = io.getStdErr().writer();
-        stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
-    }
+pub const std_options: std.Options = .{
+    // Tell std.log to leave all log level filtering to us.
+    .log_level = .debug,
+    .logFn = logFn,
 };
+
+fn logFn(
+    comptime level: log.Level,
+    comptime scope: @TypeOf(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    // waylock is small enough that we don't need scopes
+    comptime assert(scope == .default);
+
+    if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
+
+    const stderr = io.getStdErr().writer();
+    stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
+}

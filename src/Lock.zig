@@ -5,7 +5,7 @@ const builtin = @import("builtin");
 const assert = std.debug.assert;
 const log = std.log;
 const mem = std.mem;
-const os = std.os;
+const posix = std.posix;
 
 const wayland = @import("wayland");
 const wl = wayland.client.wl;
@@ -30,7 +30,7 @@ pub const Color = enum {
 
 pub const Options = struct {
     fork_on_lock: bool,
-    ready_fd: ?os.fd_t = null,
+    ready_fd: ?posix.fd_t = null,
     ignore_empty_password: bool,
     init_color: u24 = 0x002b36,
     input_color: u24 = 0x6c71c4,
@@ -61,10 +61,10 @@ state: enum {
 color: Color = .init,
 
 fork_on_lock: bool,
-ready_fd: ?os.fd_t,
+ready_fd: ?posix.fd_t,
 ignore_empty_password: bool,
 
-pollfds: [2]os.pollfd,
+pollfds: [2]posix.pollfd,
 
 display: *wl.Display,
 compositor: ?*wl.Compositor = null,
@@ -104,12 +104,12 @@ pub fn run(options: Options) void {
 
     lock.pollfds[poll_wayland] = .{
         .fd = lock.display.getFd(),
-        .events = os.POLL.IN,
+        .events = posix.POLL.IN,
         .revents = 0,
     };
     lock.pollfds[poll_auth] = .{
         .fd = lock.auth_connection.read_fd,
-        .events = os.POLL.IN,
+        .events = posix.POLL.IN,
         .revents = 0,
     };
 
@@ -160,11 +160,11 @@ pub fn run(options: Options) void {
     while (lock.state != .exiting) {
         lock.flush_wayland_and_prepare_read();
 
-        _ = os.poll(&lock.pollfds, -1) catch |err| {
+        _ = posix.poll(&lock.pollfds, -1) catch |err| {
             fatal("poll() failed: {s}", .{@errorName(err)});
         };
 
-        if (lock.pollfds[poll_wayland].revents & os.POLL.IN != 0) {
+        if (lock.pollfds[poll_wayland].revents & posix.POLL.IN != 0) {
             const errno = lock.display.readEvents();
             if (errno != .SUCCESS) {
                 fatal("error reading wayland events: {s}", .{@tagName(errno)});
@@ -173,7 +173,7 @@ pub fn run(options: Options) void {
             lock.display.cancelRead();
         }
 
-        if (lock.pollfds[poll_auth].revents & os.POLL.IN != 0) {
+        if (lock.pollfds[poll_auth].revents & posix.POLL.IN != 0) {
             const byte = lock.auth_connection.reader().readByte() catch |err| {
                 fatal("failed to read response from child authentication process: {s}", .{@errorName(err)});
             };
@@ -231,12 +231,12 @@ fn flush_wayland_and_prepare_read(lock: *Lock) void {
             },
             .AGAIN => {
                 // The socket buffer is full, so wait for it to become writable again.
-                var wayland_out = [_]os.pollfd{.{
+                var wayland_out = [_]posix.pollfd{.{
                     .fd = lock.display.getFd(),
-                    .events = os.POLL.OUT,
+                    .events = posix.POLL.OUT,
                     .revents = 0,
                 }};
-                _ = os.poll(&wayland_out, -1) catch |err| {
+                _ = posix.poll(&wayland_out, -1) catch |err| {
                     fatal("poll() failed: {s}", .{@errorName(err)});
                 };
                 // No need to check for POLLHUP/POLLERR here, just fall
@@ -365,7 +365,7 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
                 const file = std.fs.File{ .handle = ready_fd };
                 file.writeAll("\n") catch |err| {
                     log.err("failed to send readiness notification: {s}", .{@errorName(err)});
-                    os.exit(1);
+                    posix.exit(1);
                 };
                 file.close();
                 lock.ready_fd = null;
@@ -381,11 +381,11 @@ fn session_lock_listener(_: *ext.SessionLockV1, event: ext.SessionLockV1.Event, 
                 .locking => {
                     log.err("the wayland compositor has denied our attempt to lock the session, " ++
                         "is another ext-session-lock client already running?", .{});
-                    os.exit(1);
+                    posix.exit(1);
                 },
                 .locked => {
                     log.info("the wayland compositor has unlocked the session, exiting", .{});
-                    os.exit(0);
+                    posix.exit(0);
                 },
                 .exiting => unreachable,
             }
@@ -409,7 +409,7 @@ pub fn submit_password(lock: *Lock) void {
 fn send_password_to_auth(lock: *Lock) !void {
     defer lock.password.clear();
     const writer = lock.auth_connection.writer();
-    try writer.writeIntNative(u32, @as(u32, @intCast(lock.password.buffer.len)));
+    try writer.writeInt(u32, @as(u32, @intCast(lock.password.buffer.len)), builtin.cpu.arch.endian());
     try writer.writeAll(lock.password.buffer);
 }
 
@@ -426,7 +426,7 @@ pub fn set_color(lock: *Lock, color: Color) void {
 
 fn fatal(comptime format: []const u8, args: anytype) noreturn {
     log.err(format, args);
-    os.exit(1);
+    posix.exit(1);
 }
 
 fn fatal_oom() noreturn {
@@ -455,17 +455,17 @@ fn create_buffers(
 }
 
 // TODO: Upstream this to the Zig standard library
-extern fn setsid() os.pid_t;
+extern fn setsid() posix.pid_t;
 
 fn fork_to_background() void {
-    const pid = os.fork() catch |err| fatal("fork failed: {s}", .{@errorName(err)});
+    const pid = posix.fork() catch |err| fatal("fork failed: {s}", .{@errorName(err)});
     if (pid == 0) {
         // This can't fail as we are the child of a fork() and therefore not
         // a process group leader.
         assert(setsid() != -1);
         // Ensure the working directory is on the root filesystem to avoid potentially
         // blocking some other filesystem from being unmounted.
-        os.chdirZ("/") catch |err| {
+        posix.chdirZ("/") catch |err| {
             // While this is a nice thing to do, it is not critical to the locking functionality
             // and it is better to allow potentially unlocking the session rather than aborting
             // and leaving the session locked if this fails.
@@ -473,6 +473,6 @@ fn fork_to_background() void {
         };
     } else {
         // Terminate the parent process with a clean exit code.
-        os.exit(0);
+        posix.exit(0);
     }
 }

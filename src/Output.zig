@@ -43,7 +43,7 @@ pub fn destroy(output: *Output) void {
     if (output.lock_surface) |lock_surface| lock_surface.destroy();
     if (output.surface) |surface| surface.destroy();
 
-    const node = @fieldParentPtr(std.SinglyLinkedList(Output).Node, "data", output);
+    const node: *std.SinglyLinkedList(Output).Node = @fieldParentPtr("data", output);
     output.lock.outputs.remove(node);
     gpa.destroy(node);
 }

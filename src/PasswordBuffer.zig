@@ -5,7 +5,7 @@ const builtin = @import("builtin");
 const assert = std.debug.assert;
 const log = std.log;
 const mem = std.mem;
-const os = std.os;
+const posix = std.posix;
 
 const auth = @import("auth.zig");
 
@@ -18,7 +18,7 @@ pub fn init() PasswordBuffer {
     var password: PasswordBuffer = .{
         .buffer = gpa.alignedAlloc(u8, mem.page_size, size_max) catch {
             log.err("failed to allocate password buffer", .{});
-            os.exit(1);
+            posix.exit(1);
         },
     };
 
@@ -74,18 +74,18 @@ pub fn clear(password: *PasswordBuffer) void {
 fn prevent_swapping(buffer: []align(mem.page_size) const u8) void {
     var attempts: usize = 0;
     while (attempts < 10) : (attempts += 1) {
-        const errno = os.errno(mlock(buffer.ptr, buffer.len));
+        const errno = posix.errno(mlock(buffer.ptr, buffer.len));
         switch (errno) {
             .SUCCESS => return,
             .AGAIN => continue,
             else => {
                 log.err("mlock() on password buffer failed: E{s}", .{@tagName(errno)});
-                os.exit(1);
+                posix.exit(1);
             },
         }
     }
     log.err("mlock() on password buffer failed: EAGAIN after 10 attempts", .{});
-    os.exit(1);
+    posix.exit(1);
 }
 
 fn prevent_dumping_best_effort(buffer: []align(mem.page_size) u8) void {
@@ -93,7 +93,7 @@ fn prevent_dumping_best_effort(buffer: []align(mem.page_size) u8) void {
 
     var attempts: usize = 0;
     while (attempts < 10) : (attempts += 1) {
-        const errno = os.errno(os.system.madvise(buffer.ptr, buffer.len, os.MADV.DONTDUMP));
+        const errno = posix.errno(std.os.linux.madvise(buffer.ptr, buffer.len, posix.MADV.DONTDUMP));
         switch (errno) {
             .SUCCESS => return,
             .AGAIN => continue,

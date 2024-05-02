@@ -53,7 +53,7 @@ pub fn build(b: *Build) !void {
         if (mem.endsWith(u8, version, "-dev")) {
             var ret: u8 = undefined;
 
-            const git_describe_long = b.execAllowFail(
+            const git_describe_long = b.runAllowFail(
                 &.{ "git", "-C", b.build_root.path orelse ".", "describe", "--long" },
                 &ret,
                 .Inherit,
@@ -88,10 +88,8 @@ pub fn build(b: *Build) !void {
     scanner.generate("wp_viewporter", 1);
     scanner.generate("wp_single_pixel_buffer_manager_v1", 1);
 
-    const wayland = b.createModule(.{ .source_file = scanner.result });
-    const xkbcommon = b.createModule(
-        .{ .source_file = .{ .path = "deps/zig-xkbcommon/src/xkbcommon.zig" } },
-    );
+    const wayland = b.createModule(.{ .root_source_file = scanner.result });
+    const xkbcommon = b.createModule(.{ .root_source_file = .{ .path = "deps/zig-xkbcommon/src/xkbcommon.zig" } });
 
     const waylock = b.addExecutable(.{
         .name = "waylock",
@@ -99,21 +97,22 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    waylock.addOptions("build_options", options);
+    waylock.root_module.addOptions("build_options", options);
 
     waylock.linkLibC();
     waylock.linkSystemLibrary("pam");
 
-    waylock.addModule("wayland", wayland);
+    waylock.root_module.addImport("wayland", wayland);
     waylock.linkSystemLibrary("wayland-client");
 
-    waylock.addModule("xkbcommon", xkbcommon);
+    waylock.root_module.addImport("xkbcommon", xkbcommon);
     waylock.linkSystemLibrary("xkbcommon");
 
     // TODO: remove when zig issue #131 is implemented
     scanner.addCSource(waylock);
 
-    waylock.strip = strip;
+    waylock.root_module.strip = strip;
     waylock.pie = pie;
+
     b.installArtifact(waylock);
 }

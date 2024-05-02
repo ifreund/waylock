@@ -2,7 +2,7 @@ const Seat = @This();
 
 const std = @import("std");
 const log = std.log;
-const os = std.os;
+const posix = std.posix;
 
 const wayland = @import("wayland");
 const wl = wayland.client.wl;
@@ -37,7 +37,7 @@ pub fn destroy(seat: *Seat) void {
     if (seat.wl_keyboard) |wl_keyboard| wl_keyboard.release();
     if (seat.xkb_state) |xkb_state| xkb_state.unref();
 
-    const node = @fieldParentPtr(std.SinglyLinkedList(Seat).Node, "data", seat);
+    const node: *std.SinglyLinkedList(Seat).Node = @fieldParentPtr("data", seat);
     seat.lock.seats.remove(node);
     gpa.destroy(node);
 }
@@ -92,18 +92,18 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             // only care about press events, not release.
         },
         .keymap => |ev| {
-            defer os.close(ev.fd);
+            defer posix.close(ev.fd);
 
             if (ev.format != .xkb_v1) {
                 log.err("unsupported keymap format {d}", .{@intFromEnum(ev.format)});
                 return;
             }
 
-            const keymap_string = os.mmap(null, ev.size, os.PROT.READ, os.MAP.PRIVATE, ev.fd, 0) catch |err| {
+            const keymap_string = posix.mmap(null, ev.size, posix.PROT.READ, .{ .TYPE = .PRIVATE }, ev.fd, 0) catch |err| {
                 log.err("failed to mmap() keymap fd: {s}", .{@errorName(err)});
                 return;
             };
-            defer os.munmap(keymap_string);
+            defer posix.munmap(keymap_string);
 
             const keymap = xkb.Keymap.newFromBuffer(
                 seat.lock.xkb_context,

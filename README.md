@@ -28,7 +28,7 @@ git submodule update --init
 To compile waylock first ensure that you have the following dependencies
 installed:
 
-- [zig](https://ziglang.org/download/) 0.11.0
+- [zig](https://ziglang.org/download/) 0.12.0
 - wayland
 - wayland-protocols
 - xkbcommon
