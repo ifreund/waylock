@@ -7,9 +7,9 @@ despite the drawbacks of depending on a relatively immature language/toolchain.
 
 ## Source tarballs
 
-Source tarballs with stable checksums and git submodule sources included may
-be found on the [codeberg releases](https://codeberg.org/ifreund/waylock/releases)
-page. These tarballs are signed with the PGP key available on my website at
+Source tarballs with stable checksums may be found on the [codeberg
+releases](https://codeberg.org/ifreund/waylock/releases) page. These
+tarballs are signed with the PGP key available on my website at
 <https://isaacfreund.com/public_key.txt>.
 
 For the 0.4.0 release for example, the tarball and signature URLs are:
@@ -25,6 +25,45 @@ waylock from building. Waylock tracks the latest minor version Zig release
 and is only compatible with that release and any patch releases. At the time
 of writing for example waylock is compatible with Zig 0.9.0 and 0.9.1 but
 not Zig 0.8.0 or 0.10.0.
+
+## Zig Package Manager
+
+Waylock uses the built-in Zig package manager for its (few) Zig dependencies.
+By default, running `zig build` will fetch waylock's Zig dependencies from the
+internet and store them in the global zig cache before building waylock. Since
+accessing the internet is forbidden or at least frowned upon by most distro
+packaging infrastructure, there are ways to fetch the Zig dependencies in a
+separate step before building waylock:
+
+1. Fetch step with internet access:
+
+   For each package in the `build.zig.zon` manifest file run the following command
+   with the tarball URL in the `build.zig.zon`:
+
+   ```
+   zig fetch --global-cache-dir /tmp/foobar $URL
+   ```
+
+   This command will download and unpack the tarball, hash the contents of the
+   tarball, and store the contents in the `/tmp/foobar/p/$HASH` directory. This
+   hash should match the corresponding hash field in the `build.zig.zon`.
+
+2. Build step with no internet access:
+
+   The `--system` flag for `zig build` takes a path to an arbitrary directory in
+   which zig packages stored in subdirectories matching their hash can be found.
+
+   ```
+   zig build --system /tmp/foobar/p/ ...
+   ```
+
+   This flag will disable all internet access and error if a package is not found
+   in the provided directory.
+
+It is also possible for distros to distribute Zig package manager packages as
+distro packages although there are still some rough edges as the support for
+this is not yet mature. See this patchset for Chimera Linux for an example of
+how this can work: https://github.com/chimera-linux/cports/pull/1395
 
 ## Build options
 
@@ -75,7 +114,7 @@ in the first place. For greatest effect, both may be used.
   - `-Doptimize=ReleaseSmall`: Optimize for binary size,
   disable all assertions and runtime safety checks.
 
-Please use `-Doptimize=ReleaseSafe` when building waylock for general
+Please use `-Doptimize=ReleaseSafe` when building waylock for general use. This
 software is not at all demanding when it comes to CPU execution speed and the
 increased safety is more than worth the binary size trade-off in my opinion.
 

@@ -4,7 +4,7 @@ const Build = std.Build;
 const fs = std.fs;
 const mem = std.mem;
 
-const Scanner = @import("deps/zig-wayland/build.zig").Scanner;
+const Scanner = @import("zig-wayland").Scanner;
 
 /// While a waylock release is in development, this string should contain the version in
 /// development with the "-dev" suffix.
@@ -89,7 +89,7 @@ pub fn build(b: *Build) !void {
     scanner.generate("wp_single_pixel_buffer_manager_v1", 1);
 
     const wayland = b.createModule(.{ .root_source_file = scanner.result });
-    const xkbcommon = b.createModule(.{ .root_source_file = .{ .path = "deps/zig-xkbcommon/src/xkbcommon.zig" } });
+    const xkbcommon = b.dependency("zig-xkbcommon", .{}).module("xkbcommon");
 
     const waylock = b.addExecutable(.{
         .name = "waylock",

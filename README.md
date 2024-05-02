@@ -6,6 +6,8 @@ more robust than previous client-side Wayland screen locking approaches.
 Importantly, the screenlocker crashing does not cause the session to be
 unlocked.
 
+Install from your [package manager](https://repology.org/project/waylock/versions)
+
 The main repository is on [codeberg](https://codeberg.org/ifreund/waylock),
 which is where the issue tracker may be found and where contributions are accepted.
 
@@ -14,16 +16,7 @@ and [github](https://github.com/ifreund/waylock).
 
 ## Building
 
-<a href="https://repology.org/project/waylock/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/waylock.svg" alt="Packaging status" align="right">
-</a>
-
-On cloning the repository, you must init and update the submodules as well
-with e.g.
-
-```
-git submodule update --init
-```
+Note: If you are packaging waylock for distribution, see [PACKAGING.md](PACKAGING.md).
 
 To compile waylock first ensure that you have the following dependencies
 installed:
@@ -46,9 +39,6 @@ Note that PAM will only use configuration files in the system directory,
 likely `/etc/pam.d` by default. Therefore care must be taken if
 installing to a prefix other than `/usr` to ensure the configuration file
 [pam.d/waylock](pam.d/waylock) is found by PAM.
-
-If you are packaging waylock for distribution, see also
-[PACKAGING.md](PACKAGING.md).
 
 ## Usage
 
