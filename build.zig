@@ -36,7 +36,7 @@ pub fn build(b: *Build) !void {
         // Even passing a buffer to std.Build.Step.Run appears to be racy and occasionally deadlocks.
         const scdoc = b.addSystemCommand(&.{ "sh", "-c", "scdoc < doc/waylock.1.scd" });
         // This makes the caching work for the Workaround, and the extra argument is ignored by /bin/sh.
-        scdoc.addFileArg(.{ .path = "doc/waylock.1.scd" });
+        scdoc.addFileArg(b.path("doc/waylock.1.scd"));
 
         const stdout = scdoc.captureStdOut();
         b.getInstallStep().dependOn(&b.addInstallFile(stdout, "share/man/man1/waylock.1").step);
@@ -93,7 +93,7 @@ pub fn build(b: *Build) !void {
 
     const waylock = b.addExecutable(.{
         .name = "waylock",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
