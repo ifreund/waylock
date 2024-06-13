@@ -1,0 +1,25 @@
+image: freebsd/latest
+packages:
+  - devel/pkgconf
+  - graphics/wayland
+  - graphics/wayland-protocols
+  - scdoc
+  - security/ca_root_nss
+  - wget
+  - x11/libxkbcommon
+sources:
+  - https://codeberg.org/ifreund/waylock
+tasks:
+  - install_deps: |
+      # Eat Github's resources rather than the Zig Software Foundation's resources!
+      wget -nv https://github.com/ifreund/zig-tarball-mirror/releases/download/0.13.0/zig-freebsd-x86_64-0.13.0.tar.xz
+      tar xf zig-freebsd-x86_64-0.13.0.tar.xz
+      sudo mv zig-freebsd-x86_64-0.13.0/zig /usr/bin/
+      sudo mv zig-freebsd-x86_64-0.13.0/lib /usr/lib/zig
+  - build: |
+      cd waylock
+      zig build -Dman-pages
+  - fmt: |
+      cd waylock
+      zig fmt --check build.zig
+      zig fmt --check src/
