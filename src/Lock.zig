@@ -25,6 +25,7 @@ const gpa = std.heap.c_allocator;
 pub const Color = enum {
     init,
     input,
+    input_alt,
     fail,
 };
 
@@ -34,12 +35,14 @@ pub const Options = struct {
     ignore_empty_password: bool,
     init_color: u24 = 0x002b36,
     input_color: u24 = 0x6c71c4,
+    input_alt_color: u24 = 0x6c71c4,
     fail_color: u24 = 0xdc322f,
 
     fn rgb(options: Options, color: Color) u24 {
         return switch (color) {
             .init => options.init_color,
             .input => options.input_color,
+            .input_alt => options.input_alt_color,
             .fail => options.fail_color,
         };
     }
@@ -72,7 +75,7 @@ session_lock_manager: ?*ext.SessionLockManagerV1 = null,
 session_lock: ?*ext.SessionLockV1 = null,
 viewporter: ?*wp.Viewporter = null,
 buffer_manager: ?*wp.SinglePixelBufferManagerV1 = null,
-buffers: [3]*wl.Buffer,
+buffers: [4]*wl.Buffer,
 
 seats: std.SinglyLinkedList(Seat) = .{},
 outputs: std.SinglyLinkedList(Output) = .{},
@@ -440,9 +443,9 @@ fn fatal_not_advertised(comptime Global: type) noreturn {
 fn create_buffers(
     buffer_manager: *wp.SinglePixelBufferManagerV1,
     options: Options,
-) error{OutOfMemory}![3]*wl.Buffer {
-    var buffers: [3]*wl.Buffer = undefined;
-    for ([_]Color{ .init, .input, .fail }) |color| {
+) error{OutOfMemory}![4]*wl.Buffer {
+    var buffers: [4]*wl.Buffer = undefined;
+    for ([_]Color{ .init, .input, .input_alt, .fail }) |color| {
         const rgb = options.rgb(color);
         buffers[@intFromEnum(color)] = try buffer_manager.createU32RgbaBuffer(
             @as(u32, (rgb >> 16) & 0xff) * (0xffff_ffff / 0xff),

@@ -198,7 +198,10 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             // If key was not handled, write to password buffer
             const delta = xkb_state.keyGetUtf8(keycode, lock.password.unused_slice());
             if (delta > 0) {
-                lock.set_color(.input);
+                switch (lock.color) {
+                    .init, .input_alt, .fail => lock.set_color(.input),
+                    .input => lock.set_color(.input_alt),
+                }
             }
             lock.password.grow(delta) catch log.err("password exceeds 1024 byte limit", .{});
         },

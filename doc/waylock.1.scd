@@ -51,6 +51,10 @@ unlocked.
 *-input-color* _0xRRGGBB_
 	Set the color used after input. (default: 0x6c71c4)
 
+*-input-alt-color* _0xRRGGBB_
+	Set the alternate color used after input. (default is what
+	*-input-color* is set to)
+
 *-fail-color* _0xRRGGBB_
 	Set the color used on authentication failure. (default: 0xdc322f)
 
@@ -58,8 +62,9 @@ unlocked.
 
 Run the waylock executable to lock the session. All monitors will be blanked
 with the *-init-color*. Typing causes the color to change to the
-*-input-color*. Esc or Ctrl-U clears all current input, while backspace
-deletes the last UTF-8 codepoint.
+*-input-color*. If *-input-alt-color* is set, the typing color will alternate
+between this and the former. Esc or Ctrl-U clears all current input, while
+backspace deletes the last UTF-8 codepoint.
 
 To unlock the session, type your password and press Enter. If the password
 is correct, waylock will unlock the session and exit. Otherwise, the color

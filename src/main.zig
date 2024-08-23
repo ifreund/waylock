@@ -14,17 +14,18 @@ const flags = @import("flags.zig");
 const usage =
     \\usage: waylock [options]
     \\
-    \\  -h                      Print this help message and exit.
-    \\  -version                Print the version number and exit.
-    \\  -log-level <level>      Set the log level to error, warning, info, or debug.
+    \\  -h                         Print this help message and exit.
+    \\  -version                   Print the version number and exit.
+    \\  -log-level <level>         Set the log level to error, warning, info, or debug.
     \\
-    \\  -fork-on-lock           Fork to the background after locking.
-    \\  -ready-fd <fd>          Write a newline to fd after locking.
-    \\  -ignore-empty-password  Do not validate an empty password.
+    \\  -fork-on-lock              Fork to the background after locking.
+    \\  -ready-fd <fd>             Write a newline to fd after locking.
+    \\  -ignore-empty-password     Do not validate an empty password.
     \\
-    \\  -init-color 0xRRGGBB    Set the initial color.
-    \\  -input-color 0xRRGGBB   Set the color used after input.
-    \\  -fail-color 0xRRGGBB    Set the color used on authentication failure.
+    \\  -init-color 0xRRGGBB       Set the initial color.
+    \\  -input-color 0xRRGGBB      Set the color used after input.
+    \\  -input-alt-color 0xRRGGBB  Set the alternate color used after input.
+    \\  -fail-color 0xRRGGBB       Set the color used on authentication failure.
     \\
 ;
 
@@ -38,6 +39,7 @@ pub fn main() void {
         .{ .name = "ignore-empty-password", .kind = .boolean },
         .{ .name = "init-color", .kind = .arg },
         .{ .name = "input-color", .kind = .arg },
+        .{ .name = "input-alt-color", .kind = .arg },
         .{ .name = "fail-color", .kind = .arg },
     }).parse(std.os.argv[1..]) catch {
         io.getStdErr().writeAll(usage) catch {};
@@ -83,7 +85,11 @@ pub fn main() void {
         };
     }
     if (result.flags.@"init-color") |raw| options.init_color = parse_color(raw);
-    if (result.flags.@"input-color") |raw| options.input_color = parse_color(raw);
+    if (result.flags.@"input-color") |raw| {
+        options.input_color = parse_color(raw);
+        options.input_alt_color = parse_color(raw);
+    }
+    if (result.flags.@"input-alt-color") |raw| options.input_alt_color = parse_color(raw);
     if (result.flags.@"fail-color") |raw| options.fail_color = parse_color(raw);
 
     Lock.run(options);
