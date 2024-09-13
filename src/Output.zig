@@ -22,6 +22,7 @@ surface: ?*wl.Surface = null,
 viewport: ?*wp.Viewport = null,
 lock_surface: ?*ext.SessionLockSurfaceV1 = null,
 
+configured: bool = false,
 // These fields are not used before the first configure is received.
 width: u31 = undefined,
 height: u31 = undefined,
@@ -56,6 +57,7 @@ fn lock_surface_listener(
     const lock = output.lock;
     switch (event) {
         .configure => |ev| {
+            output.configured = true;
             output.width = @min(std.math.maxInt(u31), ev.width);
             output.height = @min(std.math.maxInt(u31), ev.height);
             output.lock_surface.?.ackConfigure(ev.serial);
@@ -65,6 +67,7 @@ fn lock_surface_listener(
 }
 
 pub fn attach_buffer(output: *Output, buffer: *wl.Buffer) void {
+    if (!output.configured) return;
     output.surface.?.attach(buffer, 0, 0);
     output.surface.?.damageBuffer(0, 0, math.maxInt(i32), math.maxInt(i32));
     output.viewport.?.setDestination(output.width, output.height);
