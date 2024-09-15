@@ -10,7 +10,7 @@ const Scanner = @import("zig-wayland").Scanner;
 /// development with the "-dev" suffix.
 /// When a release is tagged, the "-dev" suffix should be removed for the commit that gets tagged.
 /// Directly after the tagged commit, the version should be bumped and the "-dev" suffix added.
-const version = "1.2.1-dev";
+const version = "1.2.1";
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
