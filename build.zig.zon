@@ -1,15 +1,16 @@
 .{
-    .name = "waylock",
+    .name = .waylock,
     .version = "1.4.0-dev",
     .paths = .{""},
     .dependencies = .{
-        .@"zig-wayland" = .{
-            .url = "https://codeberg.org/ifreund/zig-wayland/archive/v0.2.0.tar.gz",
-            .hash = "1220687c8c47a48ba285d26a05600f8700d37fc637e223ced3aa8324f3650bf52242",
+        .wayland = .{
+            .url = "https://codeberg.org/ifreund/zig-wayland/archive/v0.3.0.tar.gz",
+            .hash = "wayland-0.3.0-lQa1kjPIAQDmhGYpY-zxiRzQJFHQ2VqhJkQLbKKdt5wl",
         },
-        .@"zig-xkbcommon" = .{
-            .url = "https://codeberg.org/ifreund/zig-xkbcommon/archive/v0.2.0.tar.gz",
-            .hash = "1220c90b2228d65fd8427a837d31b0add83e9fade1dcfa539bb56fd06f1f8461605f",
+        .xkbcommon = .{
+            .url = "https://codeberg.org/ifreund/zig-xkbcommon/archive/v0.3.0.tar.gz",
+            .hash = "xkbcommon-0.3.0-VDqIe3K9AQB2fG5ZeRcMC9i7kfrp5m2rWgLrmdNn9azr",
         },
     },
+    .fingerprint = 0x25022b88e788bba4,
 }

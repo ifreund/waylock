@@ -287,15 +287,15 @@ fn registry_listener(registry: *wl.Registry, event: wl.Registry.Event, lock: *Lo
 fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event) !void {
     switch (event) {
         .global => |ev| {
-            if (mem.orderZ(u8, ev.interface, wl.Compositor.getInterface().name) == .eq) {
+            if (mem.orderZ(u8, ev.interface, wl.Compositor.interface.name) == .eq) {
                 // Version 4 required for wl_surface.damage_buffer
                 if (ev.version < 4) {
                     fatal("advertised wl_compositor version too old, version 4 required", .{});
                 }
                 lock.compositor = try registry.bind(ev.name, wl.Compositor, 4);
-            } else if (mem.orderZ(u8, ev.interface, ext.SessionLockManagerV1.getInterface().name) == .eq) {
+            } else if (mem.orderZ(u8, ev.interface, ext.SessionLockManagerV1.interface.name) == .eq) {
                 lock.session_lock_manager = try registry.bind(ev.name, ext.SessionLockManagerV1, 1);
-            } else if (mem.orderZ(u8, ev.interface, wl.Output.getInterface().name) == .eq) {
+            } else if (mem.orderZ(u8, ev.interface, wl.Output.interface.name) == .eq) {
                 // Version 3 required for wl_output.release
                 if (ev.version < 3) {
                     fatal("advertised wl_output version too old, version 3 required", .{});
@@ -317,7 +317,7 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
                     .initializing, .exiting => {},
                     .locking, .locked => try node.data.create_surface(),
                 }
-            } else if (mem.orderZ(u8, ev.interface, wl.Seat.getInterface().name) == .eq) {
+            } else if (mem.orderZ(u8, ev.interface, wl.Seat.interface.name) == .eq) {
                 // Version 5 required for wl_seat.release
                 if (ev.version < 5) {
                     fatal("advertised wl_seat version too old, version 5 required.", .{});
@@ -330,9 +330,9 @@ fn registry_event(lock: *Lock, registry: *wl.Registry, event: wl.Registry.Event)
 
                 node.data.init(lock, ev.name, wl_seat);
                 lock.seats.prepend(node);
-            } else if (mem.orderZ(u8, ev.interface, wp.Viewporter.getInterface().name) == .eq) {
+            } else if (mem.orderZ(u8, ev.interface, wp.Viewporter.interface.name) == .eq) {
                 lock.viewporter = try registry.bind(ev.name, wp.Viewporter, 1);
-            } else if (mem.orderZ(u8, ev.interface, wp.SinglePixelBufferManagerV1.getInterface().name) == .eq) {
+            } else if (mem.orderZ(u8, ev.interface, wp.SinglePixelBufferManagerV1.interface.name) == .eq) {
                 lock.buffer_manager = try registry.bind(ev.name, wp.SinglePixelBufferManagerV1, 1);
             }
         },
@@ -437,7 +437,7 @@ fn fatal_oom() noreturn {
 }
 
 fn fatal_not_advertised(comptime Global: type) noreturn {
-    fatal("{s} not advertised", .{Global.getInterface().name});
+    fatal("{s} not advertised", .{Global.interface.name});
 }
 
 fn create_buffers(

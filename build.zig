@@ -4,7 +4,7 @@ const Build = std.Build;
 const fs = std.fs;
 const mem = std.mem;
 
-const Scanner = @import("zig-wayland").Scanner;
+const Scanner = @import("wayland").Scanner;
 
 /// While a waylock release is in development, this string should contain the version in
 /// development with the "-dev" suffix.
@@ -59,7 +59,7 @@ pub fn build(b: *Build) !void {
                 .Inherit,
             ) catch break :blk version;
 
-            var it = mem.split(u8, mem.trim(u8, git_describe_long, &std.ascii.whitespace), "-");
+            var it = mem.splitScalar(u8, mem.trim(u8, git_describe_long, &std.ascii.whitespace), '-');
             _ = it.next().?; // previous tag
             const commit_count = it.next().?;
             const commit_hash = it.next().?;
@@ -89,7 +89,7 @@ pub fn build(b: *Build) !void {
     scanner.generate("wp_single_pixel_buffer_manager_v1", 1);
 
     const wayland = b.createModule(.{ .root_source_file = scanner.result });
-    const xkbcommon = b.dependency("zig-xkbcommon", .{}).module("xkbcommon");
+    const xkbcommon = b.dependency("xkbcommon", .{}).module("xkbcommon");
 
     const waylock = b.addExecutable(.{
         .name = "waylock",
@@ -107,9 +107,6 @@ pub fn build(b: *Build) !void {
 
     waylock.root_module.addImport("xkbcommon", xkbcommon);
     waylock.linkSystemLibrary("xkbcommon");
-
-    // TODO: remove when zig issue #131 is implemented
-    scanner.addCSource(waylock);
 
     waylock.root_module.strip = strip;
     waylock.pie = pie;

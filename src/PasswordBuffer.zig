@@ -4,19 +4,19 @@ const std = @import("std");
 const builtin = @import("builtin");
 const assert = std.debug.assert;
 const log = std.log;
-const mem = std.mem;
+const heap = std.heap;
 const posix = std.posix;
 
 const auth = @import("auth.zig");
 
-const gpa = std.heap.c_allocator;
+const gpa = heap.c_allocator;
 pub const size_max = 1024;
 
-buffer: []align(mem.page_size) u8,
+buffer: []align(heap.page_size_min) u8,
 
 pub fn init() PasswordBuffer {
     var password: PasswordBuffer = .{
-        .buffer = gpa.alignedAlloc(u8, mem.page_size, size_max) catch {
+        .buffer = gpa.alignedAlloc(u8, heap.page_size_min, size_max) catch {
             log.err("failed to allocate password buffer", .{});
             posix.exit(1);
         },
@@ -71,7 +71,7 @@ pub fn clear(password: *PasswordBuffer) void {
     password.buffer.len = 0;
 }
 
-fn prevent_swapping(buffer: []align(mem.page_size) const u8) void {
+fn prevent_swapping(buffer: []align(heap.page_size_min) const u8) void {
     var attempts: usize = 0;
     while (attempts < 10) : (attempts += 1) {
         const errno = posix.errno(mlock(buffer.ptr, buffer.len));
@@ -88,7 +88,7 @@ fn prevent_swapping(buffer: []align(mem.page_size) const u8) void {
     posix.exit(1);
 }
 
-fn prevent_dumping_best_effort(buffer: []align(mem.page_size) u8) void {
+fn prevent_dumping_best_effort(buffer: []align(heap.page_size_min) u8) void {
     if (builtin.target.os.tag != .linux) return;
 
     var attempts: usize = 0;
