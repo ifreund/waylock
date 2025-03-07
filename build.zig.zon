@@ -1,6 +1,6 @@
 .{
     .name = .waylock,
-    .version = "1.4.0-dev",
+    .version = "1.4.0",
     .paths = .{""},
     .dependencies = .{
         .wayland = .{
