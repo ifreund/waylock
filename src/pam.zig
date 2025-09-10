@@ -50,7 +50,7 @@ pub const Conv = extern struct {
         /// by the caller.
         resp: *[*]Response,
         appdata_ptr: ?*anyopaque,
-    ) callconv(.C) Result,
+    ) callconv(.c) Result,
     appdata_ptr: ?*anyopaque,
 };
 

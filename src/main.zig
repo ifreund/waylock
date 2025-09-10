@@ -1,5 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const fs = std.fs;
 const io = std.io;
 const mem = std.mem;
 const posix = std.posix;
@@ -42,21 +43,21 @@ pub fn main() void {
         .{ .name = "input-alt-color", .kind = .arg },
         .{ .name = "fail-color", .kind = .arg },
     }).parse(std.os.argv[1..]) catch {
-        io.getStdErr().writeAll(usage) catch {};
+        fs.File.stderr().writeAll(usage) catch {};
         posix.exit(1);
     };
     if (result.flags.h) {
-        io.getStdOut().writeAll(usage) catch posix.exit(1);
+        fs.File.stdout().writeAll(usage) catch posix.exit(1);
         posix.exit(0);
     }
     if (result.args.len != 0) {
         log.err("unknown option '{s}'", .{result.args[0]});
-        io.getStdErr().writeAll(usage) catch {};
+        fs.File.stderr().writeAll(usage) catch {};
         posix.exit(1);
     }
 
     if (result.flags.version) {
-        io.getStdOut().writeAll(build_options.version ++ "\n") catch posix.exit(1);
+        fs.File.stdout().writeAll(build_options.version ++ "\n") catch posix.exit(1);
         posix.exit(0);
     }
     if (result.flags.@"log-level") |level| {
@@ -130,6 +131,9 @@ fn logFn(
 
     if (@intFromEnum(level) > @intFromEnum(runtime_log_level)) return;
 
-    const stderr = io.getStdErr().writer();
+    var buffer: [256]u8 = undefined;
+    const stderr = std.debug.lockStderrWriter(&buffer);
+    defer std.debug.unlockStderrWriter();
+
     stderr.print(level.asText() ++ ": " ++ format ++ "\n", args) catch {};
 }

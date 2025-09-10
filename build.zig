@@ -93,9 +93,11 @@ pub fn build(b: *Build) !void {
 
     const waylock = b.addExecutable(.{
         .name = "waylock",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     waylock.root_module.addOptions("build_options", options);
 

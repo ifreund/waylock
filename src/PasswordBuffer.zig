@@ -12,11 +12,11 @@ const auth = @import("auth.zig");
 const gpa = heap.c_allocator;
 pub const size_max = 1024;
 
-buffer: []align(heap.page_size_min) u8,
+buffer: []align(heap.page_size_max) u8,
 
 pub fn init() PasswordBuffer {
     var password: PasswordBuffer = .{
-        .buffer = gpa.alignedAlloc(u8, heap.page_size_min, size_max) catch {
+        .buffer = gpa.alignedAlloc(u8, .fromByteUnits(heap.page_size_max), size_max) catch {
             log.err("failed to allocate password buffer", .{});
             posix.exit(1);
         },
@@ -57,7 +57,7 @@ pub fn pop_codepoint(password: *PasswordBuffer) void {
         const actual_len = std.unicode.utf8ByteSequenceLength(codepoint_bytes[0]) catch continue;
 
         assert(check_len == actual_len);
-        std.crypto.utils.secureZero(u8, codepoint_bytes);
+        std.crypto.secureZero(u8, codepoint_bytes);
         password.buffer.len -= actual_len;
         return;
     }
@@ -67,11 +67,11 @@ pub fn pop_codepoint(password: *PasswordBuffer) void {
 }
 
 pub fn clear(password: *PasswordBuffer) void {
-    std.crypto.utils.secureZero(u8, password.buffer);
+    std.crypto.secureZero(u8, password.buffer);
     password.buffer.len = 0;
 }
 
-fn prevent_swapping(buffer: []align(heap.page_size_min) const u8) void {
+fn prevent_swapping(buffer: []align(heap.page_size_max) const u8) void {
     var attempts: usize = 0;
     while (attempts < 10) : (attempts += 1) {
         const errno = posix.errno(mlock(buffer.ptr, buffer.len));
@@ -88,7 +88,7 @@ fn prevent_swapping(buffer: []align(heap.page_size_min) const u8) void {
     posix.exit(1);
 }
 
-fn prevent_dumping_best_effort(buffer: []align(heap.page_size_min) u8) void {
+fn prevent_dumping_best_effort(buffer: []align(heap.page_size_max) u8) void {
     if (builtin.target.os.tag != .linux) return;
 
     var attempts: usize = 0;

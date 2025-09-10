@@ -20,12 +20,12 @@ pub const Connection = struct {
 
     pub fn reader(conn: Connection) std.fs.File.Reader {
         const file = std.fs.File{ .handle = conn.read_fd };
-        return file.reader();
+        return file.readerStreaming(&.{});
     }
 
     pub fn writer(conn: Connection) std.fs.File.Writer {
         const file = std.fs.File{ .handle = conn.write_fd };
-        return file.writer();
+        return file.writerStreaming(&.{});
     }
 };
 
@@ -92,7 +92,8 @@ pub fn run(conn: Connection) noreturn {
         if (auth_result == .success) {
             log.debug("PAM authentication succeeded", .{});
 
-            conn.writer().writeByte(@intFromBool(true)) catch |err| {
+            var writer = conn.writer();
+            writer.interface.writeByte(@intFromBool(true)) catch |err| {
                 log.err("failed to notify parent of success: {s}", .{@errorName(err)});
                 posix.exit(1);
             };
@@ -116,7 +117,8 @@ pub fn run(conn: Connection) noreturn {
         } else {
             log.err("PAM authentication failed: {s}", .{auth_result.description()});
 
-            conn.writer().writeByte(@intFromBool(false)) catch |err| {
+            var writer = conn.writer();
+            writer.interface.writeByte(@intFromBool(false)) catch |err| {
                 log.err("failed to notify parent of failure: {s}", .{@errorName(err)});
                 posix.exit(1);
             };
@@ -135,10 +137,11 @@ pub fn run(conn: Connection) noreturn {
 fn read_password(conn: Connection) !void {
     assert(password.buffer.len == 0);
 
-    const reader = conn.reader();
-    const length = try reader.readInt(u32, builtin.cpu.arch.endian());
-    try password.grow(length);
-    try reader.readNoEof(password.buffer);
+    var reader = conn.reader();
+    var len_bytes: [4]u8 = undefined;
+    try reader.interface.readSliceAll(&len_bytes);
+    try password.grow(@as(u32, @bitCast(len_bytes)));
+    try reader.interface.readSliceAll(password.buffer);
 }
 
 fn converse(
@@ -146,7 +149,7 @@ fn converse(
     msg: [*]*const pam.Message,
     resp: *[*]pam.Response,
     _: ?*anyopaque,
-) callconv(.C) pam.Result {
+) callconv(.c) pam.Result {
     const ally = std.heap.raw_c_allocator;
 
     const responses = ally.alloc(pam.Response, @intCast(num_msg)) catch {

@@ -21,12 +21,19 @@ wl_pointer: ?*wl.Pointer = null,
 wl_keyboard: ?*wl.Keyboard = null,
 xkb_state: ?*xkb.State = null,
 
-pub fn init(seat: *Seat, lock: *Lock, name: u32, wl_seat: *wl.Seat) void {
+link: wl.list.Link,
+
+pub fn create(lock: *Lock, name: u32, wl_seat: *wl.Seat) !void {
+    const seat = try gpa.create(Seat);
+    errdefer gpa.destroy(seat);
+
     seat.* = .{
         .lock = lock,
         .name = name,
         .wl_seat = wl_seat,
+        .link = undefined,
     };
+    lock.seats.prepend(seat);
 
     wl_seat.setListener(*Seat, seat_listener, seat);
 }
@@ -37,9 +44,8 @@ pub fn destroy(seat: *Seat) void {
     if (seat.wl_keyboard) |wl_keyboard| wl_keyboard.release();
     if (seat.xkb_state) |xkb_state| xkb_state.unref();
 
-    const node: *std.SinglyLinkedList(Seat).Node = @fieldParentPtr("data", seat);
-    seat.lock.seats.remove(node);
-    gpa.destroy(node);
+    seat.link.remove();
+    gpa.destroy(seat);
 }
 
 fn seat_listener(wl_seat: *wl.Seat, event: wl.Seat.Event, seat: *Seat) void {
