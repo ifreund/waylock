@@ -85,6 +85,14 @@ fn pointer_listener(wl_pointer: *wl.Pointer, event: wl.Pointer.Event, _: ?*anyop
     }
 }
 
+fn ctrl_active(xkb_state: *xkb.State) bool {
+    const Component = xkb.State.Component;
+    return xkb_state.modNameIsActive(
+        xkb.names.mod.ctrl,
+        @enumFromInt(Component.mods_depressed | Component.mods_latched),
+    ) == 1;
+}
+
 fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) void {
     switch (event) {
         .enter => {
@@ -177,19 +185,19 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     return;
                 },
                 xkb.Keysym.u => {
-                    const Component = xkb.State.Component;
-                    const ctrl_active = xkb_state.modNameIsActive(
-                        xkb.names.mod.ctrl,
-                        @enumFromInt(Component.mods_depressed | Component.mods_latched),
-                    ) == 1;
-
-                    if (ctrl_active) {
+                    if (ctrl_active(xkb_state)) {
                         lock.password.clear();
                         lock.set_color(.init);
                         return;
                     }
                 },
                 xkb.Keysym.BackSpace => {
+                    if (ctrl_active(xkb_state)) {
+                        lock.password.clear();
+                        lock.set_color(.init);
+                        return;
+                    }
+
                     lock.password.pop_codepoint();
                     if (lock.password.buffer.len == 0) {
                         lock.set_color(.init);
