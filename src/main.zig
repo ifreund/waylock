@@ -70,6 +70,7 @@ pub fn main(init: process.Init) error{ OutOfMemory, Unexpected }!void {
 
     if (result.flags.version) {
         stdout.writeAll(build_options.version ++ "\n") catch process.exit(1);
+        stdout.flush() catch process.exit(1);
         process.exit(0);
     }
     if (result.flags.@"log-level") |level| {
