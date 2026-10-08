@@ -1,7 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const Build = std.Build;
-const fs = std.fs;
 const mem = std.mem;
 
 const Scanner = @import("wayland").Scanner;
@@ -42,12 +41,7 @@ pub fn build(b: *Build) !void {
         b.getInstallStep().dependOn(&b.addInstallFile(stdout, "share/man/man1/waylock.1").step);
     }
 
-    const install_prefix = try std.fs.path.resolve(b.allocator, &.{b.install_prefix});
-    if (mem.eql(u8, install_prefix, "/usr")) {
-        b.installFile("pam.d/waylock", "../etc/pam.d/waylock");
-    } else {
-        b.installFile("pam.d/waylock", "etc/pam.d/waylock");
-    }
+    b.installFile("pam.d/waylock", "lib/pam.d/waylock");
 
     const full_version = blk: {
         if (mem.endsWith(u8, version, "-dev")) {

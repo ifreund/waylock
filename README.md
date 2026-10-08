@@ -35,9 +35,11 @@ Then run, for example:
 zig build -Doptimize=ReleaseSafe --prefix /usr install
 ```
 
-Note that PAM will only use configuration files in the system directory,
-likely `/etc/pam.d` by default. Therefore care must be taken if
-installing to a prefix other than `/usr` to ensure the configuration file
+Note that the configuration file is installed to `$prefix/lib/pam.d`.
+PAM searches the vendor directory `/usr/lib/pam.d` (or `/usr/local/lib/pam.d`
+when installing with `--prefix /usr/local`) in addition to the administrator
+override directory `/etc/pam.d`. Therefore care must be taken if installing
+to a prefix other than `/usr` or `/usr/local` to ensure the configuration file
 [pam.d/waylock](pam.d/waylock) is found by PAM.
 
 ## Usage
