@@ -56,15 +56,18 @@ pub fn main(init: process.Init) error{ OutOfMemory, Unexpected }!void {
         .{ .name = "fail-color", .kind = .arg },
     }).parse(args[1..]) catch {
         stderr.writeAll(usage) catch {};
+        stderr.flush() catch process.exit(1);
         process.exit(1);
     };
     if (result.flags.h) {
         stdout.writeAll(usage) catch process.exit(1);
+        stdout.flush() catch process.exit(1);
         process.exit(0);
     }
     if (result.args.len != 0) {
         log.err("unknown option '{s}'", .{result.args[0]});
         stderr.writeAll(usage) catch {};
+        stderr.flush() catch process.exit(1);
         process.exit(1);
     }
 
