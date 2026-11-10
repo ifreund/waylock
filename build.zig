@@ -41,7 +41,7 @@ pub fn build(b: *Build) !void {
         b.getInstallStep().dependOn(&b.addInstallFile(stdout, "share/man/man1/waylock.1").step);
     }
 
-    b.installFile("pam.d/waylock", "lib/pam.d/waylock");
+    b.installLibFile("pam.d/waylock", "pam.d/waylock");
 
     const full_version = blk: {
         if (mem.endsWith(u8, version, "-dev")) {
