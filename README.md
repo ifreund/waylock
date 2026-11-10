@@ -21,7 +21,7 @@ Note: If you are packaging waylock for distribution, see [PACKAGING.md](PACKAGIN
 To compile waylock first ensure that you have the following dependencies
 installed:
 
-- [zig](https://ziglang.org/download/) 0.16
+- [zig](https://ziglang.org/download/) 0.17.1
 - wayland
 - wayland-protocols
 - xkbcommon

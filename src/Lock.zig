@@ -429,7 +429,7 @@ pub fn set_color(lock: *Lock, color: Color) void {
 
     var it = lock.outputs.iterator(.forward);
     while (it.next()) |output| {
-        output.attach_buffer(lock.buffers[@intFromEnum(lock.color)]);
+        output.attach_buffer(lock.buffers[@backingInt(lock.color)]);
     }
 }
 
@@ -448,7 +448,7 @@ fn create_buffers(
     var buffers: [4]*wl.Buffer = undefined;
     for ([_]Color{ .init, .input, .input_alt, .fail }) |color| {
         const rgb = options.rgb(color);
-        buffers[@intFromEnum(color)] = try buffer_manager.createU32RgbaBuffer(
+        buffers[@backingInt(color)] = try buffer_manager.createU32RgbaBuffer(
             @as(u32, (rgb >> 16) & 0xff) * (0xffff_ffff / 0xff),
             @as(u32, (rgb >> 8) & 0xff) * (0xffff_ffff / 0xff),
             @as(u32, (rgb >> 0) & 0xff) * (0xffff_ffff / 0xff),

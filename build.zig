@@ -23,12 +23,7 @@ pub fn build(b: *Build) !void {
         bool,
         "man-pages",
         "Set to true to build man pages. Requires scdoc. Defaults to true if scdoc is found.",
-    ) orelse scdoc_found: {
-        _ = b.findProgram(&.{"scdoc"}, &.{}) catch |err| switch (err) {
-            error.FileNotFound => break :scdoc_found false,
-        };
-        break :scdoc_found true;
-    };
+    ) orelse (b.findProgram(.{ .names = &.{"scdoc"} }) != null);
 
     if (man_pages) {
         // Workaround for https://github.com/ziglang/zig/issues/16369
@@ -48,7 +43,7 @@ pub fn build(b: *Build) !void {
             var ret: u8 = undefined;
 
             const git_describe_long = b.runAllowFail(
-                &.{ "git", "-C", b.build_root.path orelse ".", "describe", "--long" },
+                &.{ "git", "-C", b.fmt("{f}", .{b.root}), "describe", "--long" },
                 &ret,
                 .inherit,
             ) catch break :blk version;

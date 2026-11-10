@@ -89,7 +89,7 @@ fn ctrl_active(xkb_state: *xkb.State) bool {
     const Component = xkb.State.Component;
     return xkb_state.modNameIsActive(
         xkb.names.mod.ctrl,
-        @enumFromInt(Component.mods_depressed | Component.mods_latched),
+        @fromBackingInt(@intCast(Component.mods_depressed | Component.mods_latched)),
     ) == 1;
 }
 
@@ -107,7 +107,7 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             defer _ = posix.system.close(ev.fd);
 
             if (ev.format != .xkb_v1) {
-                log.err("unsupported keymap format {d}", .{@intFromEnum(ev.format)});
+                log.err("unsupported keymap format {d}", .{@backingInt(ev.format)});
                 return;
             }
 
@@ -165,9 +165,9 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
             if (keysym == .NoSymbol) return;
 
             const lock = seat.lock;
-            switch (@intFromEnum(keysym)) {
-                xkb.Keysym.Return,
-                xkb.Keysym.KP_Enter,
+            switch (keysym) {
+                .Return,
+                .KP_Enter,
                 => {
                     // Ignore the attempt to submit the password if the locked event has not yet
                     // been received. This should be pretty much impossible to happen in practice
@@ -179,19 +179,19 @@ fn keyboard_listener(_: *wl.Keyboard, event: wl.Keyboard.Event, seat: *Seat) voi
                     }
                     return;
                 },
-                xkb.Keysym.Escape => {
+                .Escape => {
                     lock.password.clear();
                     lock.set_color(.init);
                     return;
                 },
-                xkb.Keysym.u => {
+                .u => {
                     if (ctrl_active(xkb_state)) {
                         lock.password.clear();
                         lock.set_color(.init);
                         return;
                     }
                 },
-                xkb.Keysym.BackSpace => {
+                .BackSpace => {
                     if (ctrl_active(xkb_state)) {
                         lock.password.clear();
                         lock.set_color(.init);

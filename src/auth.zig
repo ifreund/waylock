@@ -8,11 +8,6 @@ const process = std.process;
 const fatal = process.fatal;
 const system = std.posix.system;
 
-const c = @cImport({
-    @cInclude("unistd.h"); // getuid()
-    @cInclude("pwd.h"); // getpwuid()
-});
-
 const pam = @import("pam.zig");
 
 const PasswordBuffer = @import("PasswordBuffer.zig");
@@ -85,12 +80,12 @@ fn run(io: Io, conn: Connection) noreturn {
     var pamh: *pam.Handle = undefined;
 
     {
-        const pw = @as(?*c.struct_passwd, c.getpwuid(c.getuid())) orelse {
+        const pw = std.c.getpwuid(std.c.getuid()) orelse {
             log.err("failed to get name of current user", .{});
             process.exit(1);
         };
 
-        const result = pam.start("waylock", pw.pw_name, &conv, &pamh);
+        const result = pam.start("waylock", pw.name, &conv, &pamh);
         if (result != .success) {
             log.err("failed to initialize PAM: {s}", .{result.description()});
             process.exit(1);
@@ -181,7 +176,7 @@ fn converse(
         switch (message.msg_style) {
             .prompt_echo_off => {
                 response.* = .{
-                    .resp = ally.dupeZ(u8, password.buffer) catch {
+                    .resp = ally.dupeSentinel(u8, password.buffer, 0) catch {
                         return .buf_err;
                     },
                 };

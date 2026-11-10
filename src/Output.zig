@@ -60,7 +60,7 @@ fn lock_surface_listener(
             output.width = @min(std.math.maxInt(u31), ev.width);
             output.height = @min(std.math.maxInt(u31), ev.height);
             output.lock_surface.?.ackConfigure(ev.serial);
-            output.attach_buffer(lock.buffers[@intFromEnum(lock.color)]);
+            output.attach_buffer(lock.buffers[@backingInt(lock.color)]);
         },
     }
 }
