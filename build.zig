@@ -5,11 +5,8 @@ const mem = std.mem;
 
 const Scanner = @import("wayland").Scanner;
 
-/// While a waylock release is in development, this string should contain the version in
-/// development with the "-dev" suffix.
-/// When a release is tagged, the "-dev" suffix should be removed for the commit that gets tagged.
-/// Directly after the tagged commit, the version should be bumped and the "-dev" suffix added.
-const version = "1.4.0-dev";
+const manifest = @import("build.zig.zon");
+const version = manifest.version;
 
 pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
